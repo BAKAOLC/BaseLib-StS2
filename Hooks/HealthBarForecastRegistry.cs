@@ -258,10 +258,10 @@ public static class HealthBarForecastRegistry
             return true;
         }
 
-        if (!directionName.Contains("FromRight", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!directionName.Contains("FromRight", StringComparison.OrdinalIgnoreCase))
+            return false;
         direction = HealthBarForecastDirection.FromRight;
         return true;
-
     }
 
     private static ForeignSegmentAccessors? CreateForeignSegmentAccessors(Type type)

@@ -229,13 +229,13 @@ public static class HealthBarForecastPatch
         {
             if (!IsDoomLethalAfterRight(healthBar, creature))
                 return;
-            hpLabel.AddThemeColorOverride("font_color", DoomLethalTextColor);
-            hpLabel.AddThemeColorOverride("font_outline_color", DoomLethalOutlineColor);
+            hpLabel.AddThemeColorOverride(BetaMainCompatibility.Renamed.FontColor, DoomLethalTextColor);
+            hpLabel.AddThemeColorOverride(BetaMainCompatibility.Renamed.FontOutlineColor, DoomLethalOutlineColor);
             return;
         }
 
-        hpLabel.AddThemeColorOverride("font_color", lethalColor.Value);
-        hpLabel.AddThemeColorOverride("font_outline_color", DarkenForOutline(lethalColor.Value));
+        hpLabel.AddThemeColorOverride(BetaMainCompatibility.Renamed.FontColor, lethalColor.Value);
+        hpLabel.AddThemeColorOverride(BetaMainCompatibility.Renamed.FontOutlineColor, DarkenForOutline(lethalColor.Value));
     }
 
     private static CustomSegment[] GetCustomSegments(Creature creature)
@@ -317,9 +317,9 @@ public static class HealthBarForecastPatch
 
     private static void EnsureOverlayOrder(NHealthBar healthBar, HealthBarForecastUiState state)
     {
-        if (healthBar._poisonForeground is not Control poisonForeground ||
-            healthBar._hpForeground is not Control hpForeground ||
-            healthBar._doomForeground is not Control doomForeground ||
+        if (healthBar._poisonForeground is not { } poisonForeground ||
+            healthBar._hpForeground is not { } hpForeground ||
+            healthBar._doomForeground is not { } doomForeground ||
             poisonForeground.GetParent() is not Control mask)
             return;
 
@@ -440,12 +440,9 @@ public static class HealthBarForecastPatch
             return null;
 
         List<LethalCandidate> candidates = [];
-        foreach (var segment in leftSegments)
-        {
-            if (segment.Amount <= 0)
-                continue;
-            candidates.Add(new LethalCandidate(segment.Amount, segment.Color, segment.Order, segment.SequenceOrder));
-        }
+        candidates.AddRange(from segment in leftSegments
+            where segment.Amount > 0
+            select new LethalCandidate(segment.Amount, segment.Color, segment.Order, segment.SequenceOrder));
 
         var doomAmount = creature.GetPowerAmount<DoomPower>();
         if (doomAmount > 0)
