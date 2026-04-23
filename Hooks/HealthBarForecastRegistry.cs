@@ -13,7 +13,8 @@ namespace BaseLib.Hooks;
 ///     <see cref="RegisterForeign" /> accepts objects with public instance properties:
 ///     <c>Amount</c> (<see cref="int" />), <c>Color</c> (<see cref="Godot.Color" />), <c>Direction</c> (enum or string
 ///     containing FromLeft/FromRight); optional <c>Order</c> (<see cref="int" />), <c>OverlayMaterial</c>
-///     (<see cref="Godot.Material" />), <c>OverlaySelfModulate</c> (<see cref="Godot.Color" />?).
+///     (<see cref="Godot.Material" />), <c>OverlaySelfModulate</c> (<see cref="Godot.Color" />?),
+///     <c>LeftOriginLayout</c> (enum, int, or string with Overlap), <c>LeftExclusiveZGroup</c> (<see cref="int" />).
 /// </remarks>
 public static class HealthBarForecastRegistry
 {
@@ -232,8 +233,30 @@ public static class HealthBarForecastRegistry
             direction,
             accessors.ReadOrder(segment),
             accessors.ReadOverlayMaterial(segment),
-            accessors.ReadOverlaySelfModulate(segment));
+            accessors.ReadOverlaySelfModulate(segment),
+            accessors.ReadLeftOriginLayout(segment),
+            accessors.ReadLeftExclusiveZGroup(segment));
         return true;
+    }
+
+    private static HealthBarForecastLeftOriginLayout ParseLeftOriginLayoutValue(object? value)
+    {
+        switch (value)
+        {
+            case null:
+                return HealthBarForecastLeftOriginLayout.Chained;
+            case HealthBarForecastLeftOriginLayout layout:
+                return layout;
+            case int i:
+                return i != 0 ? HealthBarForecastLeftOriginLayout.OverlapFromOrigin : HealthBarForecastLeftOriginLayout.Chained;
+        }
+
+        var name = value.ToString();
+        if (string.IsNullOrWhiteSpace(name))
+            return HealthBarForecastLeftOriginLayout.Chained;
+        if (name.Contains("Overlap", StringComparison.OrdinalIgnoreCase))
+            return HealthBarForecastLeftOriginLayout.OverlapFromOrigin;
+        return HealthBarForecastLeftOriginLayout.Chained;
     }
 
     private static bool TryParseDirection(object? directionValue, out HealthBarForecastDirection direction)
@@ -272,6 +295,8 @@ public static class HealthBarForecastRegistry
         var order = type.GetProperty("Order", BindingFlags.Instance | BindingFlags.Public);
         var overlayMaterial = type.GetProperty("OverlayMaterial", BindingFlags.Instance | BindingFlags.Public);
         var overlaySelfModulate = type.GetProperty("OverlaySelfModulate", BindingFlags.Instance | BindingFlags.Public);
+        var leftOriginLayout = type.GetProperty("LeftOriginLayout", BindingFlags.Instance | BindingFlags.Public);
+        var leftExclusiveZGroup = type.GetProperty("LeftExclusiveZGroup", BindingFlags.Instance | BindingFlags.Public);
 
         if (amount?.PropertyType != typeof(int) ||
             color?.PropertyType != typeof(Color) ||
@@ -287,6 +312,14 @@ public static class HealthBarForecastRegistry
                 ? segment => (Color?)overlaySelfModulate.GetValue(segment)
                 : _ => null;
 
+        Func<object, HealthBarForecastLeftOriginLayout> readLeftLayout = leftOriginLayout == null
+            ? _ => HealthBarForecastLeftOriginLayout.Chained
+            : segment => ParseLeftOriginLayoutValue(leftOriginLayout.GetValue(segment));
+
+        Func<object, int> readLeftZ = leftExclusiveZGroup?.PropertyType == typeof(int)
+            ? segment => (int)leftExclusiveZGroup.GetValue(segment)!
+            : _ => 0;
+
         return new ForeignSegmentAccessors(
             segment => (int)amount.GetValue(segment)!,
             segment => (Color)color.GetValue(segment)!,
@@ -295,7 +328,9 @@ public static class HealthBarForecastRegistry
                 ? segment => (int)order.GetValue(segment)!
                 : _ => 0,
             readOverlay,
-            readOverlaySelfModulate);
+            readOverlaySelfModulate,
+            readLeftLayout,
+            readLeftZ);
     }
 
     /// <summary>
@@ -320,5 +355,7 @@ public static class HealthBarForecastRegistry
         Func<object, object?> ReadDirection,
         Func<object, int> ReadOrder,
         Func<object, Material?> ReadOverlayMaterial,
-        Func<object, Color?> ReadOverlaySelfModulate);
+        Func<object, Color?> ReadOverlaySelfModulate,
+        Func<object, HealthBarForecastLeftOriginLayout> ReadLeftOriginLayout,
+        Func<object, int> ReadLeftExclusiveZGroup);
 }

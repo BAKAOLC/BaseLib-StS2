@@ -21,6 +21,23 @@ public enum HealthBarForecastDirection
 }
 
 /// <summary>
+///     How <see cref="HealthBarForecastDirection.FromLeft" /> segments share the empty-edge origin.
+/// </summary>
+public enum HealthBarForecastLeftOriginLayout
+{
+    /// <summary>
+    ///     Segments connect end-to-end from the empty edge (legacy layout).
+    /// </summary>
+    Chained = 0,
+
+    /// <summary>
+    ///     Each segment spans from the empty edge by its own <c>Amount</c> (capped). Larger <c>Amount</c> is drawn behind;
+    ///     smaller in front. Equal widths rotate front/back on a timer.
+    /// </summary>
+    OverlapFromOrigin = 1,
+}
+
+/// <summary>
 ///     One forecast overlay segment for a creature health bar.
 /// </summary>
 /// <param name="Amount">HP amount represented by this segment.</param>
@@ -42,19 +59,28 @@ public enum HealthBarForecastDirection
 ///     used
 ///     for both overlay tint and lethal HP label; when set, <see cref="Color" /> is still used for lethal label theming.
 /// </param>
+/// <param name="LeftOriginLayout">
+///     For <see cref="HealthBarForecastDirection.FromLeft" /> only: chained vs overlap-from-origin stacking.
+/// </param>
+/// <param name="LeftExclusiveZGroup">
+///     For <see cref="HealthBarForecastLeftOriginLayout.OverlapFromOrigin" />: larger draws above smaller. Within a
+///     group, longer strips sit behind shorter strips; equal widths rotate.
+/// </param>
 public readonly record struct HealthBarForecastSegment(
     int Amount,
     Color Color,
     HealthBarForecastDirection Direction,
     int Order,
     Material? OverlayMaterial,
-    Color? OverlaySelfModulate = null)
+    Color? OverlaySelfModulate = null,
+    HealthBarForecastLeftOriginLayout LeftOriginLayout = HealthBarForecastLeftOriginLayout.Chained,
+    int LeftExclusiveZGroup = 0)
 {
     /// <summary>
     ///     Initializes a segment without overlay material or separate overlay modulate.
     /// </summary>
     public HealthBarForecastSegment(int amount, Color color, HealthBarForecastDirection direction, int order = 0)
-        : this(amount, color, direction, order, null, null)
+        : this(amount, color, direction, order, null, null, HealthBarForecastLeftOriginLayout.Chained, 0)
     {
     }
 
@@ -68,7 +94,7 @@ public readonly record struct HealthBarForecastSegment(
         HealthBarForecastDirection direction,
         int order,
         Material? overlayMaterial)
-        : this(amount, color, direction, order, overlayMaterial, null)
+        : this(amount, color, direction, order, overlayMaterial, null, HealthBarForecastLeftOriginLayout.Chained, 0)
     {
     }
 }

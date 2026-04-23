@@ -309,6 +309,8 @@ public sealed class HealthBarForecastSequenceBuilder(HealthBarForecastContext co
                left.Direction == right.Direction &&
                left.Order == right.Order &&
                left.OverlaySelfModulate == right.OverlaySelfModulate &&
+               left.LeftOriginLayout == right.LeftOriginLayout &&
+               left.LeftExclusiveZGroup == right.LeftExclusiveZGroup &&
                ReferenceEquals(left.OverlayMaterial, right.OverlayMaterial);
     }
 }
