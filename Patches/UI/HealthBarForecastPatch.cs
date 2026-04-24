@@ -13,8 +13,7 @@ namespace BaseLib.Patches.UI;
 ///     and lethal HP label tinting from <see cref="HealthBarForecastRegistry" /> data.
 /// </summary>
 /// <remarks>
-///     When no segments apply, vanilla visuals are unchanged. Right-side segments layer above poison; left-side above
-///     doom.
+///     When no segments apply, vanilla visuals are unchanged.
 /// </remarks>
 [HarmonyPatch]
 public static class HealthBarForecastPatch
@@ -30,7 +29,9 @@ public static class HealthBarForecastPatch
     [HarmonyPostfix]
     private static void RefreshForegroundPostfix(NHealthBar __instance)
     {
+        NHealthBarVisualGraftPatch.RefreshGraftOverlay(__instance);
         RefreshForegroundOverlay(__instance);
+        NHealthBarVisualGraftPatch.AfterForecastTouchup(__instance);
     }
 
     [HarmonyPatch(typeof(NHealthBar), "RefreshMiddleground")]
@@ -57,142 +58,145 @@ public static class HealthBarForecastPatch
         }
 
         var customSegments = GetCustomSegments(creature);
-        if (customSegments.Length == 0)
-        {
-            HideAllCustomSegments(healthBar);
-            return;
-        }
-
-        if (!EnsureUiState(healthBar))
-            return;
-
-        var state = UiStates[healthBar];
-        if (state == null)
-            return;
-        EnsureOverlayOrder(healthBar, state);
-
-        var graftAgg = HealthBarVisualGraftRegistry.Aggregate(creature);
-        var visualDenom = Math.Max(creature.MaxHp, creature.CurrentHp + Math.Max(0, graftAgg.GraftHp));
-
-        var maxWidth = GetMaxFgWidth(healthBar);
-        var hpForeground = healthBar._hpForeground;
-        var hpFromForeground =
-            Math.Clamp(HpFromOffsetRight(healthBar, hpForeground.OffsetRight, visualDenom), 0, creature.CurrentHp);
-        var baseHp = hpForeground.Visible || hpFromForeground < creature.CurrentHp ? hpFromForeground : 0;
-
-        var rightSegments = customSegments
-            .Where(segment => segment.Direction == HealthBarForecastDirection.FromRight)
-            .OrderBy(segment => segment.Order)
-            .ThenBy(segment => segment.SequenceOrder)
-            .ToArray();
-
-        var remainingHp = baseHp + Math.Max(0, graftAgg.GraftHp);
-        var rightForecastEdgeOffsetRight = hpForeground.OffsetRight;
-        Color? lethalRightColor = null;
-        var rightIndex = 0;
-
-        foreach (var segment in rightSegments)
-        {
-            if (remainingHp <= 0)
-                break;
-
-            var visibleAmount = Math.Min(segment.Amount, remainingHp);
-            if (visibleAmount <= 0)
-                continue;
-
-            EnsureSegmentCount(state.RightSegments, state.RightContainer, rightIndex + 1, state.RightTemplate);
-            var node = state.RightSegments[rightIndex];
-            var previousHp = remainingHp;
-            remainingHp -= visibleAmount;
-
-            var leftWidth = GetFgWidth(healthBar, remainingHp, visualDenom);
-            var rightWidth = GetFgWidth(healthBar, previousHp, visualDenom);
-            node.Visible = true;
-            ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial, segment.OverlaySelfModulate);
-            node.OffsetLeft = remainingHp > 0 ? Math.Max(0f, leftWidth - node.PatchMarginLeft) : 0f;
-            node.OffsetRight = rightWidth - maxWidth;
-
-            if (rightIndex == 0)
-                rightForecastEdgeOffsetRight = node.OffsetRight;
-
-            if (remainingHp <= 0)
-                lethalRightColor = segment.Color;
-
-            rightIndex++;
-        }
-
-        HideSegments(state.RightSegments, rightIndex);
-
-        if (rightIndex > 0)
-        {
-            if (remainingHp > 0)
+            if (customSegments.Length == 0)
             {
-                hpForeground.Visible = true;
-                hpForeground.OffsetRight = GetFgWidth(healthBar, remainingHp, visualDenom) - maxWidth;
-            }
-            else
-            {
-                hpForeground.Visible = false;
+                HideAllCustomSegments(healthBar);
+                return;
             }
 
-            var doomForeground = healthBar._doomForeground;
-            if (doomForeground.Visible)
+            if (!EnsureUiState(healthBar))
+                return;
+
+            var state = UiStates[healthBar];
+            if (state == null)
+                return;
+            EnsureOverlayOrder(healthBar, state);
+
+            var graftAgg = HealthBarVisualGraftRegistry.Aggregate(creature);
+            var visualDenom = Math.Max(creature.MaxHp, creature.CurrentHp + Math.Max(0, graftAgg.GraftHp));
+
+            var maxWidth = GetMaxFgWidth(healthBar);
+            var hpForeground = healthBar._hpForeground;
+            var hpFromForeground =
+                Math.Clamp(HpFromOffsetRight(healthBar, hpForeground.OffsetRight, visualDenom), 0,
+                    creature.CurrentHp);
+            var baseHp = hpForeground.Visible || hpFromForeground < creature.CurrentHp ? hpFromForeground : 0;
+
+            var rightSegments = customSegments
+                .Where(segment => segment.Direction == HealthBarForecastDirection.FromRight)
+                .OrderBy(segment => segment.Order)
+                .ThenBy(segment => segment.SequenceOrder)
+                .ToArray();
+
+            var remainingHp = baseHp + Math.Max(0, graftAgg.GraftHp);
+            var rightForecastEdgeOffsetRight = hpForeground.OffsetRight;
+            Color? lethalRightColor = null;
+            var rightIndex = 0;
+
+            foreach (var segment in rightSegments)
+            {
+                if (remainingHp <= 0)
+                    break;
+
+                var visibleAmount = Math.Min(segment.Amount, remainingHp);
+                if (visibleAmount <= 0)
+                    continue;
+
+                EnsureSegmentCount(state.RightSegments, state.RightContainer, rightIndex + 1, state.RightTemplate);
+                var node = state.RightSegments[rightIndex];
+                var previousHp = remainingHp;
+                remainingHp -= visibleAmount;
+
+                var leftWidth = GetFgWidth(healthBar, remainingHp, visualDenom);
+                var rightWidth = GetFgWidth(healthBar, previousHp, visualDenom);
+                node.Visible = true;
+                ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial,
+                    segment.OverlaySelfModulate);
+                node.OffsetLeft = remainingHp > 0 ? Math.Max(0f, leftWidth - node.PatchMarginLeft) : 0f;
+                node.OffsetRight = rightWidth - maxWidth;
+
+                if (rightIndex == 0)
+                    rightForecastEdgeOffsetRight = node.OffsetRight;
+
+                if (remainingHp <= 0)
+                    lethalRightColor = segment.Color;
+
+                rightIndex++;
+            }
+
+            HideSegments(state.RightSegments, rightIndex);
+
+            if (rightIndex > 0)
             {
                 if (remainingHp > 0)
-                    doomForeground.OffsetRight = Math.Min(doomForeground.OffsetRight, hpForeground.OffsetRight);
+                {
+                    hpForeground.Visible = true;
+                    hpForeground.OffsetRight = GetFgWidth(healthBar, remainingHp, visualDenom) - maxWidth;
+                }
                 else
-                    doomForeground.Visible = false;
+                {
+                    hpForeground.Visible = false;
+                }
+
+                var doomForeground = healthBar._doomForeground;
+                if (doomForeground.Visible)
+                {
+                    if (remainingHp > 0)
+                        doomForeground.OffsetRight =
+                            Math.Min(doomForeground.OffsetRight, hpForeground.OffsetRight);
+                    else
+                        doomForeground.Visible = false;
+                }
             }
-        }
 
-        if (remainingHp <= 0)
-        {
-            HideSegments(state.LeftSegments);
-            state.LastRender =
-                new HealthBarForecastRenderResult(true, rightForecastEdgeOffsetRight, lethalRightColor, null);
-            return;
-        }
+            if (remainingHp <= 0)
+            {
+                HideSegments(state.LeftSegments);
+                state.LastRender =
+                    new HealthBarForecastRenderResult(true, rightForecastEdgeOffsetRight, lethalRightColor, null);
+                return;
+            }
 
-        var leftSegments = customSegments
-            .Where(segment => segment.Direction == HealthBarForecastDirection.FromLeft)
-            .OrderBy(segment => segment.Order)
-            .ThenBy(segment => segment.SequenceOrder)
-            .ToArray();
+            var leftSegments = customSegments
+                .Where(segment => segment.Direction == HealthBarForecastDirection.FromLeft)
+                .OrderBy(segment => segment.Order)
+                .ThenBy(segment => segment.SequenceOrder)
+                .ToArray();
 
-        state.OverlapLeftZ.Clear();
-        var leftIndex = 0;
-        var chainedLeft = leftSegments
-            .Where(s => s.LeftOriginLayout == HealthBarForecastLeftOriginLayout.Chained)
-            .ToArray();
-        PlaceChainedLeftSegments(
-            healthBar,
-            state,
-            chainedLeft,
-            remainingHp,
-            maxWidth,
-            rightIndex,
-            rightForecastEdgeOffsetRight,
-            visualDenom,
-            ref leftIndex);
+            state.OverlapLeftZ.Clear();
+            var leftIndex = 0;
+            var chainedLeft = leftSegments
+                .Where(s => s.LeftOriginLayout == HealthBarForecastLeftOriginLayout.Chained)
+                .ToArray();
+            PlaceChainedLeftSegments(
+                healthBar,
+                state,
+                chainedLeft,
+                remainingHp,
+                maxWidth,
+                rightIndex,
+                rightForecastEdgeOffsetRight,
+                visualDenom,
+                ref leftIndex);
 
-        var overlapLeft = leftSegments
-            .Where(s => s.LeftOriginLayout == HealthBarForecastLeftOriginLayout.OverlapFromOrigin)
-            .ToArray();
-        PlaceOverlapLeftSegments(
-            healthBar,
-            state,
-            overlapLeft,
-            remainingHp,
-            maxWidth,
-            rightIndex,
-            rightForecastEdgeOffsetRight,
-            visualDenom,
-            ref leftIndex);
+            var overlapLeft = leftSegments
+                .Where(s => s.LeftOriginLayout == HealthBarForecastLeftOriginLayout.OverlapFromOrigin)
+                .ToArray();
+            PlaceOverlapLeftSegments(
+                healthBar,
+                state,
+                overlapLeft,
+                remainingHp,
+                maxWidth,
+                rightIndex,
+                rightForecastEdgeOffsetRight,
+                visualDenom,
+                ref leftIndex);
 
-        HideSegments(state.LeftSegments, leftIndex);
-        var lethalLeftColor = ResolveLeftLethalColor(creature, remainingHp, leftSegments, state.OverlapLeftZ);
-        state.LastRender = new HealthBarForecastRenderResult(rightIndex > 0, rightForecastEdgeOffsetRight,
-            lethalRightColor, lethalLeftColor);
+            HideSegments(state.LeftSegments, leftIndex);
+            var lethalLeftColor = ResolveLeftLethalColor(creature, remainingHp, leftSegments, state.OverlapLeftZ);
+            state.LastRender = new HealthBarForecastRenderResult(rightIndex > 0, rightForecastEdgeOffsetRight,
+                lethalRightColor, lethalLeftColor);
     }
 
     private static void RefreshMiddlegroundOverlay(NHealthBar healthBar)
@@ -319,7 +323,7 @@ public static class HealthBarForecastPatch
                 var node = state.LeftSegments[leftIndex];
                 var endWidth = GetFgWidth(healthBar, visibleAmount, visualDenom);
                 var zKey = zBase + ranks[i];
-                node.ZIndex = zKey;
+                node.ZIndex = 0;
                 state.OverlapLeftZ.Add((segment, zKey));
 
                 node.Visible = true;
@@ -455,13 +459,13 @@ public static class HealthBarForecastPatch
         // Right forecast should override poison, but still be clipped by HP.
         var poisonIndex = poisonForeground.GetIndex();
         var hpIndex = hpForeground.GetIndex();
-        var rightTargetIndex = Math.Clamp(poisonIndex + 1, 0, hpIndex);
+        var rightTargetIndex = Math.Clamp(poisonIndex, 0, hpIndex);
         mask.MoveChild(state.RightContainer, rightTargetIndex);
 
-        // Left forecast should override doom-like overlays.
+        // Left forecast should sit under doom-like overlays so vanilla doom remains part of final stacking.
         var doomIndex = doomForeground.GetIndex();
         var childCount = mask.GetChildCount();
-        var leftTargetIndex = Math.Clamp(doomIndex + 1, 0, Math.Max(0, childCount - 1));
+        var leftTargetIndex = Math.Clamp(doomIndex, 0, Math.Max(0, childCount - 1));
         mask.MoveChild(state.LeftContainer, leftTargetIndex);
     }
 
