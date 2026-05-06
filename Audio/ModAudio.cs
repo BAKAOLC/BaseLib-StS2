@@ -58,9 +58,9 @@ public static class ModAudio
     private static float MasterVol => SaveManager.Instance.SettingsSave.VolumeMaster;
     private static float VolumeForSound(SoundType soundType) => soundType switch
     {
-        SoundType.Music => Mathf.LinearToDb(MasterVol * SaveManager.Instance.SettingsSave.VolumeBgm) + 3,
-        SoundType.Ambience => Mathf.LinearToDb(MasterVol * SaveManager.Instance.SettingsSave.VolumeAmbience) + 3,
-        _ => Mathf.LinearToDb(MasterVol * SaveManager.Instance.SettingsSave.VolumeSfx) + 3
+        SoundType.Music => Mathf.LinearToDb(SaveManager.Instance.SettingsSave.VolumeBgm),
+        SoundType.Ambience => Mathf.LinearToDb(SaveManager.Instance.SettingsSave.VolumeAmbience),
+        _ => 0//Mathf.LinearToDb(SaveManager.Instance.SettingsSave.VolumeSfx)
     };
 
     private static StringName BusForSound(SoundType soundType) => soundType switch
