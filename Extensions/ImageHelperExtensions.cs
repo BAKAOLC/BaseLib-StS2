@@ -30,12 +30,7 @@ public static class ImageHelperExtensions
     /// </example>
     public static string GetModImagePath(string innerPath, Type? type = null)
     {
-        if (innerPath.StartsWith('/'))
-        {
-            string text = innerPath;
-            innerPath = text[1..]; // range shorthand
-        }
         // is Assembly.GetCallingAssembly() safe/reliable?
-        return "res://" + (type != null ? type.GetRootNamespace() : Assembly.GetCallingAssembly().GetName().Name) + "/images/" + innerPath;
+        return Path.Join("res://" + (type != null ? type.GetRootNamespace() : Assembly.GetCallingAssembly().GetName().Name), "images", innerPath);
     }
 }
