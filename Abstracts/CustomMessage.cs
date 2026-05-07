@@ -63,7 +63,7 @@ public sealed class CustomMessageWrapper : INetMessage
     
     private static void HandleCustomMessage(CustomMessageWrapper message, ulong senderId)
     {
-        message.Message.HandleMessage();
+        message.Message.HandleMessage(senderId);
     }
     
     public int MessageType => CustomMessageToId[Message.GetType()];
@@ -107,7 +107,8 @@ public interface ICustomMessage : IPacketSerializable
     /// <see cref="TaskHelper.RunSafely"/>. Otherwise, it depends. Look at the various Synchronizer classes
     /// to see how they handle messages.
     /// </summary>
-    void HandleMessage();
+    /// <param name="senderId"></param>
+    void HandleMessage(ulong senderId);
     
     /// <summary>
     /// A message that when sent to host, will be passed on to other players.

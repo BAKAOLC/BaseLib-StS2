@@ -72,7 +72,7 @@ public sealed class CustomTargetedMessageWrapper() : IRunLocationTargetedMessage
             return;
         }
 
-        message.Message.HandleMessage();
+        message.Message.HandleMessage(senderId);
     }
 
 
@@ -118,7 +118,8 @@ public interface ICustomTargetedMessage : IPacketSerializable
     /// Generally this means doing whatever this message says should happen, usually through
     /// <see cref="TaskHelper.RunSafely"/>.
     /// </summary>
-    void HandleMessage();
+    /// <param name="senderId"></param>
+    void HandleMessage(ulong senderId);
     
     /// <summary>
     /// For a message sent by claiming a reward item.
