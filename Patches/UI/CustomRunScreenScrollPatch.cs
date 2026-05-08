@@ -44,12 +44,26 @@ internal static class CustomRunScreenScrollPatch
         parent.AddChild(scroll);
         parent.MoveChild(scroll, index);
         scroll.AddChild(container);
+        scroll.InitFocusScrolling();
+        scroll.CallDeferred(Node.MethodName.SetProcessInput, false);
 
+        
         container.AnchorLeft = 0;
         container.AnchorTop = 0;
         container.AnchorRight = 0;
         container.AnchorBottom = 0;
         container.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         container.CallDeferred(GodotObject.MethodName.Set, "position", Vector2.Zero);
+        
+        var seedInput = __instance.GetNodeOrNull<Control>("%SeedInput");
+
+        for (var i = 0; i < buttons.Count; i++)
+        {
+            var btn = buttons[i];
+            btn.FocusNeighborLeft   = i > 0               ? buttons[i - 1].GetPath() : btn.GetPath();
+            btn.FocusNeighborRight  = i < buttons.Count-1  ? buttons[i + 1].GetPath() : btn.GetPath();
+            btn.FocusNeighborTop    = seedInput != null ? seedInput.GetPath() : btn.GetPath();
+            btn.FocusNeighborBottom = btn.GetPath();
+        }
     }
 }

@@ -42,16 +42,18 @@ class ScrollCharSelectPatch
     {
         if (!ScrollEnabled)
             return;
-        
+    
         var horizontalScroll = __instance.GetNode("CharSelectButtons") as NHorizontalScrollContainer;
         if (horizontalScroll == null)
             return;
-        
+    
         var buttonContainer = horizontalScroll.GetNode<Control>("ButtonContainer");
-        
+
+        horizontalScroll.CallDeferred(Node.MethodName.SetProcessInput, false);
+    
         foreach (var selectButton in buttonContainer.GetChildren().OfType<NCharacterSelectButton>())
-        {
             selectButton.MouseFilter = Control.MouseFilterEnum.Pass;
-        }
+
+        horizontalScroll.InitFocusScrolling();
     }
 }
