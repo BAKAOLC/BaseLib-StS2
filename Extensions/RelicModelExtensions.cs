@@ -7,7 +7,8 @@ public static class RelicModelExtensions
     private static readonly Dictionary<ModelId, Func<AncientEventModel, bool>> CanSpawnAtAncient = [];
     /// <summary>
     /// Call this in your relic's constructor to add a condition to its ability to spawn at a custom ancient.
-    /// The condition should be based on the given event model's owner.
+    /// The condition should be based on the given event model's owner, as it will be processed for ALL players
+    /// locally by each individual player, and it must resolve the same way.
     /// </summary>
     public static void AddCustomAncientSpawnCondition(this RelicModel model, Func<AncientEventModel, bool> condition)
     {
