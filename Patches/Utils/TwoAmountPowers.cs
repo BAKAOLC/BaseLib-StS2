@@ -52,7 +52,7 @@ internal static class TwoAmountPowers
     private static void Subscribe(NPower __instance)
     {
         if (__instance._model is IHasSecondAmount power)
-            SecondAmountRegistry.Register(power, __instance.Reload);
+            SecondAmountRegistry.Register(power, __instance.RefreshAmount);
     }
 
     [HarmonyPatch(nameof(NPower.UnsubscribeFromModelEvents))]

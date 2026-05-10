@@ -25,6 +25,6 @@ public static class PowerExtensions
     public static void InvokeSecondAmountChanged(this IHasSecondAmount power)
     {
         if (SecondAmountRegistry.RefreshActions.TryGetValue(power, out var refresh))
-            refresh?.Invoke();
+            refresh();
     }
 }
