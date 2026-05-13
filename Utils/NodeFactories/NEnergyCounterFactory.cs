@@ -163,7 +163,6 @@ internal class NEnergyCounterFactory : NodeFactory<NEnergyCounter>
             container.AddChild(source);
         }
 
-        container.PrintTreePretty();
         SetParticles(container);
         return container;
     }

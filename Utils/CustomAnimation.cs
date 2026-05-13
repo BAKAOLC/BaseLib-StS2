@@ -70,7 +70,7 @@ public static class CustomAnimation
                     return true;
                 }
             }
-            BaseLibMain.Logger.Info($"Animations not found: {animNames.Stringify()}");
+            BaseLibMain.Logger.Debug($"Animations not found: {animNames.Stringify()}");
 
             return false;
         };
@@ -91,7 +91,7 @@ public static class CustomAnimation
                     return true;
                 }
             }
-            BaseLibMain.Logger.Info($"Animations not found: {animNames.Stringify()}");
+            BaseLibMain.Logger.Debug($"Animations not found: {animNames.Stringify()}");
 
             return false;
         };
@@ -109,7 +109,7 @@ public static class CustomAnimation
                     return true;
                 }
             }
-            BaseLibMain.Logger.Info($"Animations not found: {animNames.Stringify()}");
+            BaseLibMain.Logger.Debug($"Animations not found: {animNames.Stringify()}");
             
             return false;
         };
