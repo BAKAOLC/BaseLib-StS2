@@ -1,5 +1,5 @@
-using Baselib.Abstracts;
 using BaseLib.Extensions;
+using BaseLib.Patches.Features;
 using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Commands.Builders;
@@ -79,9 +79,9 @@ public static class CommonActions
         }
         else if (CustomTargetType.IsCustomMultiTargetType(card.TargetType))
         {
-            var state = card.CombatState;
+            var state = BetaMainCompatibility.CardModel_.WrappedCombatState(card);
             if (state == null) return cmd;
-            var targets = state.Creatures.Where(c =>  CustomTargetType.CanMulitTarget(card.TargetType, c));
+            var targets = state.Creatures.Where(c => CustomTargetType.CanMultiTarget(card.TargetType, c));
             cmd.TargetingFiltered(targets);
         }
         else
@@ -137,9 +137,9 @@ public static class CommonActions
         }
         else if (CustomTargetType.IsCustomMultiTargetType(card.TargetType))
         {
-            var state = card.CombatState;
+            var state = BetaMainCompatibility.CardModel_.WrappedCombatState(card);
             if (state == null) return cmd;
-            var targets = state.Creatures.Where(c =>  CustomTargetType.CanMulitTarget(card.TargetType, c));
+            var targets = state.Creatures.Where(c =>  CustomTargetType.CanMultiTarget(card.TargetType, c));
             cmd.TargetingFiltered(targets);
         }
         else

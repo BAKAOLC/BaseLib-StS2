@@ -16,7 +16,7 @@ using MegaCrit.Sts2.Core.Nodes.HoverTips;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.Vfx;
 
-namespace Baselib.Abstracts;
+namespace BaseLib.Patches.Features;
 
 /// <summary>
 /// Provides extended <see cref="TargetType"/> definitions and a registry of custom
@@ -62,8 +62,8 @@ public static class CustomTargetType
     /// <summary>Targets all enemies at full HP.</summary>
     [CustomEnum] public static TargetType AllFullLifeEnemies;
     
-    internal static readonly Dictionary<TargetType, Func<Creature, bool>> CanSingleTarget = new();
-    internal static readonly Dictionary<TargetType, Func<Creature, bool>> CanMultiTarget = new();
+    internal static readonly Dictionary<TargetType, Func<Creature, bool>> SingleTargeting = new();
+    internal static readonly Dictionary<TargetType, Func<Creature, bool>> MultiTargeting = new();
 
 
 
@@ -74,9 +74,9 @@ public static class CustomTargetType
     /// </summary>
     /// <param name="targetType">A <see cref="TargetType"/> registered via <see cref="RegisterMultiTargetType"/>.</param>
     /// <param name="creature">The <see cref="Creature"/> to evaluate.</param>
-    public static bool CanMulitTarget(TargetType targetType, Creature creature)
+    public static bool CanMultiTarget(TargetType targetType, Creature creature)
     {
-        CanMultiTarget.TryGetValue(targetType, out var canTarget);
+        MultiTargeting.TryGetValue(targetType, out var canTarget);
         return canTarget != null && canTarget(creature);
     }
     
@@ -86,7 +86,7 @@ public static class CustomTargetType
     /// as a custom single-target type via <see cref="RegisterSingleTargetType"/>.
     /// </summary>
     public static bool IsCustomSingleTargetType(TargetType targetType)
-        => CanSingleTarget.ContainsKey(targetType);
+        => SingleTargeting.ContainsKey(targetType);
     
     
     /// <summary>
@@ -94,7 +94,7 @@ public static class CustomTargetType
     /// as a custom multi-target type via <see cref="RegisterMultiTargetType"/>.
     /// </summary>
     public static bool IsCustomMultiTargetType(TargetType targetType)
-        => CanMultiTarget.ContainsKey(targetType);
+        => MultiTargeting.ContainsKey(targetType);
     
     /// <summary>
     /// Registers <paramref name="customType"/> as a custom single-target type whose valid
@@ -107,11 +107,9 @@ public static class CustomTargetType
     /// </param>
     public static void RegisterSingleTargetType(TargetType customType, Func<Creature, bool> canTarget)
     {
-        CanSingleTarget.Add(customType, canTarget);
+        SingleTargeting.Add(customType, canTarget);
     }
     
- 
-
     /// <summary>
     /// Registers <paramref name="customType"/> as a custom multi-target type. The card is
     /// played with a <see langword="null"/> target; <paramref name="showReticleFor"/>
@@ -125,7 +123,7 @@ public static class CustomTargetType
     /// </param>
     public static void RegisterMultiTargetType(TargetType customType, Func<Creature, bool>? showReticleFor = null)
     {
-        CanMultiTarget.Add(customType, showReticleFor ?? (_ => true));
+        MultiTargeting.Add(customType, showReticleFor ?? (_ => true));
     }
 }
 
@@ -193,7 +191,7 @@ internal class AttackCommandExecutePatch
 
 /// <summary>
 /// Triggers the multi-select visual state for any <see cref="TargetType"/> registered
-/// in <see cref="CustomTargetType.CanMultiTarget"/>, displaying targeting reticles over
+/// in <see cref="CustomTargetType.MultiTargeting"/>, displaying targeting reticles over
 /// every creature that satisfies the registered filter predicate.
 /// </summary>
 [HarmonyPatch(typeof(NCardPlay), "ShowMultiCreatureTargetingVisuals")]
@@ -202,7 +200,7 @@ internal class ShowMultiCreatureTargetingVisualsPatch
     public static void Postfix(NCardPlay __instance)
     {
         if (__instance.Card == null ||
-            !CustomTargetType.CanMultiTarget.TryGetValue(__instance.Card.TargetType, out var filter))
+            !CustomTargetType.MultiTargeting.TryGetValue(__instance.Card.TargetType, out var filter))
             return;
 
         __instance.CardNode?.UpdateVisuals(
@@ -273,14 +271,14 @@ public static class AttackCommandExtensions
 /// Redirects mouse-based card targeting to <see>
 ///     <cref>NCardPlay.SingleCreatureTargeting</cref>
 /// </see>
-/// when the card's <see cref="TargetType"/> is registered in <see cref="CustomTargetType.CanSingleTarget"/>.
+/// when the card's <see cref="TargetType"/> is registered in <see cref="CustomTargetType.SingleTargeting"/>.
 /// </summary>
 [HarmonyPatch(typeof(NMouseCardPlay), "TargetSelection")]
 internal class TargetSelectionPatch
 {
     public static bool Prefix(NMouseCardPlay __instance, TargetMode targetMode, ref Task __result)
     {
-        if (__instance.Card == null || !CustomTargetType.CanSingleTarget.ContainsKey(__instance.Card.TargetType)) return true;
+        if (__instance.Card == null || !CustomTargetType.SingleTargeting.ContainsKey(__instance.Card.TargetType)) return true;
         __result = AnyoneTargetSelectionAsync(__instance, targetMode, __instance.Card);
         return false;
     }
@@ -295,7 +293,7 @@ internal class TargetSelectionPatch
 
 /// <summary>
 /// Routes controller-based card play to <c>SingleCreatureTargeting</c> when the card's
-/// <see cref="TargetType"/> is registered in <see cref="CustomTargetType.CanSingleTarget"/>,
+/// <see cref="TargetType"/> is registered in <see cref="CustomTargetType.SingleTargeting"/>,
 /// bypassing the vanilla switch that only handles <see cref="TargetType.AnyEnemy"/> and
 /// <see cref="TargetType.AnyAlly"/>.
 /// </summary>
@@ -306,7 +304,7 @@ internal class ControllerStartPatch
     {
         var card = __instance.Card;
         var cardNode = __instance.CardNode;
-        if (card == null || cardNode == null || !CustomTargetType.CanSingleTarget.ContainsKey(card.TargetType))
+        if (card == null || cardNode == null || !CustomTargetType.SingleTargeting.ContainsKey(card.TargetType))
             return true;
 
         NDebugAudioManager.Instance?.Play("card_select.mp3");
@@ -333,7 +331,7 @@ internal class ControllerStartPatch
 
 /// <summary>
 /// Replaces the vanilla <c>SingleCreatureTargeting</c> flow for any <see cref="TargetType"/>
-/// registered in <see cref="CustomTargetType.CanSingleTarget"/>, supplying a candidate list built
+/// registered in <see cref="CustomTargetType.SingleTargeting"/>, supplying a candidate list built
 /// directly from the registered filter predicate instead of the vanilla hard-coded switch.
 /// </summary>
 [HarmonyPatch(typeof(NControllerCardPlay), "SingleCreatureTargeting", new[] { typeof(TargetType) })]
@@ -341,7 +339,7 @@ internal class ControllerSingleCreatureTargetingPatch
 {
     public static bool Prefix(NControllerCardPlay __instance, TargetType targetType, ref Task __result)
     {
-        if (!CustomTargetType.CanSingleTarget.TryGetValue(targetType, out var filter))
+        if (!CustomTargetType.SingleTargeting.TryGetValue(targetType, out var filter))
             return true;
 
         __result = FilteredControllerTargeting(__instance, targetType, filter);
@@ -353,7 +351,7 @@ internal class ControllerSingleCreatureTargetingPatch
     {
         var card = instance.Card;
         var cardNode = instance.CardNode;
-        if (card?.CombatState == null || cardNode == null)
+        if (card == null || BetaMainCompatibility.CardModel_.WrappedCombatState(card) == null || cardNode == null)
         {
             instance.CancelPlayCard();
             return;
@@ -417,7 +415,7 @@ internal class ControllerSingleCreatureTargetingPatch
 
 /// <summary>
 /// Extends the game's target identification logic to recognise any <see cref="TargetType"/>
-/// registered in <see cref="CustomTargetType.CanSingleTarget"/> as a valid single-target type.
+/// registered in <see cref="CustomTargetType.SingleTargeting"/> as a valid single-target type.
 /// </summary>
 [HarmonyPatch(typeof(ActionTargetExtensions), nameof(ActionTargetExtensions.IsSingleTarget))]
 internal class IsSingleTargetPatch
@@ -425,7 +423,7 @@ internal class IsSingleTargetPatch
     public static void Postfix(TargetType targetType, ref bool __result)
     {
         if (__result) return;
-        if (CustomTargetType.CanSingleTarget.ContainsKey(targetType)) __result = true;
+        if (CustomTargetType.SingleTargeting.ContainsKey(targetType)) __result = true;
     }
 }
 
@@ -438,7 +436,7 @@ internal class AllowedToTargetCreaturePatch
 {
     public static bool Prefix(NTargetManager __instance, Creature creature, ref bool __result)
     {
-        CustomTargetType.CanSingleTarget.TryGetValue(__instance._validTargetsType, out var func);
+        CustomTargetType.SingleTargeting.TryGetValue(__instance._validTargetsType, out var func);
         if (func == null) return true;
         __result = func.Invoke(creature);
         return false;
@@ -447,7 +445,7 @@ internal class AllowedToTargetCreaturePatch
 
 /// <summary>
 /// Re-implements the card-playing execution loop for custom target types registered in
-/// <see cref="CustomTargetType.CanSingleTarget"/>, ensuring the selected creature is correctly
+/// <see cref="CustomTargetType.SingleTargeting"/>, ensuring the selected creature is correctly
 /// passed through to the card's play action.
 /// </summary>
 [HarmonyPatch(typeof(NCardPlay), nameof(NCardPlay.TryPlayCard))]
@@ -456,7 +454,7 @@ internal class TryPlayCardPatch
     public static bool Prefix(NCardPlay __instance, Creature? target)
     {
         var card = __instance.Card;
-        if (card == null || !CustomTargetType.CanSingleTarget.ContainsKey(card.TargetType)) return true;
+        if (card == null || !CustomTargetType.SingleTargeting.ContainsKey(card.TargetType)) return true;
         if (target == null || __instance.Holder.CardModel == null)
         {
             __instance.CancelPlayCard();
@@ -506,7 +504,7 @@ internal class CanPlayTargetingPatch
     public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
     {
         if (target == null) return true;
-        CustomTargetType.CanSingleTarget.TryGetValue(__instance.TargetType, out var func);
+        CustomTargetType.SingleTargeting.TryGetValue(__instance.TargetType, out var func);
         if (func == null) return true;
         __result = func.Invoke(target);
         return false;
@@ -524,7 +522,7 @@ internal class IsValidTargetPatch
     public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
     {
         if (target == null) return true;
-        CustomTargetType.CanSingleTarget.TryGetValue(__instance.TargetType, out var func);
+        CustomTargetType.SingleTargeting.TryGetValue(__instance.TargetType, out var func);
         if (func == null) return true;
         __result = func.Invoke(target);
         return false;
