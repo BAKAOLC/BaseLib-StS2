@@ -11,6 +11,16 @@ class MerchantCharacterAnimPatch
     [HarmonyPrefix]
     public static bool SkipAnimIfNotSpine(NMerchantCharacter __instance, string anim, bool loop)
     {
-        return !CustomAnimation.PlayCustomAnimation(__instance, anim);
+        return !CustomAnimation.PlayCustomAnimation(__instance, GetAnimNames(anim));
+    }
+
+    private static string[] GetAnimNames(string animName)
+    {
+        return animName switch
+        {
+            "relaxed_loop" => ["idle", "Idle", animName],
+            "die" => ["Die", animName],
+            _ => [animName]
+        };
     }
 }
