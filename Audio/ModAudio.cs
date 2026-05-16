@@ -272,7 +272,7 @@ public static class ModAudio
 /// it can be played with PlaySfx("boop.ogg").
 ///
 /// You are suggested to define a static variable in your main file with an instance of this class.
-/// Alternatively, you can define a class with static ModSound variables to manually define your sounds.
+/// Alternatively, you can define a static class with static ModSound variables to manually define your sounds.
 /// </summary>
 /// <param name="folder"></param>
 public class AutoModAudio(string folder)
