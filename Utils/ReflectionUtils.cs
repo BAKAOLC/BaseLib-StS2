@@ -5,7 +5,7 @@ namespace BaseLib.Utils;
 public static class ReflectionUtils
 {
     private const BindingFlags DeclaredOnlyLookup = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
-    public static Action<T, TValue> GetSetterForProperty<T, TValue>(string propName) where T : class
+    public static Action<T?, TValue> GetSetterForProperty<T, TValue>(string propName) where T : class
     {
         var propertyInfo = typeof(T).GetProperty(propName, DeclaredOnlyLookup);
 
@@ -16,7 +16,7 @@ public static class ReflectionUtils
 
         return GetPropertySetter(propertyInfo);
 
-        static Action<T, TValue> GetPropertySetter(PropertyInfo prop)
+        static Action<T?, TValue> GetPropertySetter(PropertyInfo prop)
         {
             var setter = prop.GetSetMethod(nonPublic: true);
             if (setter is not null)
