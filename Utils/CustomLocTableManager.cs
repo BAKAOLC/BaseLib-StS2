@@ -22,7 +22,7 @@ public static class CustomLocTableManager
     /// Append any registered LocTables to the list of custom loc tables.
     /// </summary>
     /// <param name="original">The original list of Localization Files</param>
-    /// <returns>The original list with this.LocTables appended to the end.</returns>
+    /// <returns>The original list with LocTables appended to the end.</returns>
     internal static IEnumerable<string> GetCustomLocTables(IEnumerable<string> original)
     {
         return [.. original, .. LocTables];
@@ -48,5 +48,5 @@ public static class CustomLocTableManager
     /// </summary>
     /// <param name="locManager">The current loc manager.</param>
     /// <param name="name">The name of the json file to register.</param>
-    public static void RegisterCustomLocTable(this LocManager locManager, string name) => Register(name);     //This is just an alais I added to try and make this more discoverable for people using intellisense.
+    public static void RegisterCustomLocTable(this LocManager locManager, string name) => Register(name);     //This is just an alias I added to try and make this more discoverable for people using intellisense.
 }
