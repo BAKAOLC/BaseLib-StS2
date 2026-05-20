@@ -61,19 +61,19 @@ public static class AsyncMethodCall
         GetAsyncFields[stringKey] = val;
         //BaseLibMain.Logger.Info($"Store awaiter val {name}: {val}");
     }
-    
-    
+
+
     /// <summary>
     /// Given the CodeInstructions of an async state machine's MoveNext method,
     /// insert an async method call into it, creating another state.
     /// beforeState or afterState must be provided, being an async method awaited by the original method (and so having its own state).
     /// The original method itself can be passed to beforeState or afterState. If so, the target position will be the first or last state.
-    ///
+    /// 
     /// Parameters of the method will attempt to be found by name. If a parameter cannot be determined an exception will be thrown.
     /// 
     /// If resultName is provided and the method to call returns a value, it will be stored in a variable of this name using
     /// an external dictionary, and can be passed into subsequent calls by defining a parameter with this name.
-    ///
+    /// 
     /// If resultName is "return" the result of the method will attempt to be returned immediately.
     /// If resultName is "returnIf" and the method called has a boolean return value, the state machine will return early.
     /// This will not work if the state machine method has a non-void return type.
@@ -81,7 +81,7 @@ public static class AsyncMethodCall
     /// If resultName is the same as one of the method's parameters, it will be attempted to store the result in the variable
     /// passed to that parameter.
     /// If this does not match the correct return type, an exception will be thrown when patching.
-    ///
+    /// 
     /// </summary>
     /// <param name="generator"></param>
     /// <param name="code"></param>
@@ -89,6 +89,7 @@ public static class AsyncMethodCall
     /// <param name="callMethod">A method that returns a Task that will be called.</param>
     /// <param name="beforeState"></param>
     /// <param name="afterState"></param>
+    /// <param name="resultName"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     public static List<CodeInstruction> Create(ILGenerator generator, IEnumerable<CodeInstruction> code, MethodBase original, MethodInfo callMethod, MethodBase? beforeState = null, MethodBase? afterState = null, string? resultName = null)

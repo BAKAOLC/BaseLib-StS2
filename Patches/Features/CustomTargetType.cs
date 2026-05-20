@@ -218,9 +218,10 @@ internal class AttackCommandGetPossibleTargetsPatch
 
     /// <summary>
     /// If a custom target list has been registered for this <see cref="AttackCommand"/>
-    /// via <see cref="TargetingFiltered"/>, return it instead of running the vanilla logic.
+    /// via <see cref="AttackCommandExtensions.TargetingFiltered"/>, return it instead of running the vanilla logic.
     /// </summary>
-    public static bool Prefix(AttackCommand __instance, ref IReadOnlyList<Creature> __result)
+    [HarmonyPrefix]
+    static bool GetCustomTargets(AttackCommand __instance, ref IReadOnlyList<Creature> __result)
     {
         if (!CustomTargets.TryGetValue(__instance, out var box) ||  box.Value == null) return true;
         __result = box.Value;
@@ -258,7 +259,8 @@ public static class AttackCommandExtensions
 [HarmonyPatch(typeof(NMouseCardPlay), "TargetSelection")]
 internal class TargetSelectionPatch
 {
-    public static bool Prefix(NMouseCardPlay __instance, TargetMode targetMode, ref Task __result)
+    [HarmonyPrefix]
+    static bool CustomMouseTargetSelection(NMouseCardPlay __instance, TargetMode targetMode, ref Task __result)
     {
         if (__instance.Card == null || !CustomTargetType.SingleTargeting.ContainsKey(__instance.Card.TargetType)) return true;
         __result = AnyoneTargetSelectionAsync(__instance, targetMode, __instance.Card);
@@ -282,7 +284,8 @@ internal class TargetSelectionPatch
 [HarmonyPatch(typeof(NControllerCardPlay), nameof(NControllerCardPlay.Start))]
 internal class ControllerStartPatch
 {
-    public static bool Prefix(NControllerCardPlay __instance)
+    [HarmonyPrefix]
+    static bool CustomControllerPlayStart(NControllerCardPlay __instance)
     {
         var card = __instance.Card;
         var cardNode = __instance.CardNode;
@@ -319,7 +322,8 @@ internal class ControllerStartPatch
 [HarmonyPatch(typeof(NControllerCardPlay), "SingleCreatureTargeting", new[] { typeof(TargetType) })]
 internal class ControllerSingleCreatureTargetingPatch
 {
-    public static bool Prefix(NControllerCardPlay __instance, TargetType targetType, ref Task __result)
+    [HarmonyPrefix]
+    static bool CustomControllerTargeting(NControllerCardPlay __instance, TargetType targetType, ref Task __result)
     {
         if (!CustomTargetType.SingleTargeting.TryGetValue(targetType, out var filter))
             return true;
@@ -402,7 +406,8 @@ internal class ControllerSingleCreatureTargetingPatch
 [HarmonyPatch(typeof(ActionTargetExtensions), nameof(ActionTargetExtensions.IsSingleTarget))]
 internal class IsSingleTargetPatch
 {
-    public static void Postfix(TargetType targetType, ref bool __result)
+    [HarmonyPrefix]
+    static void CustomSingleTargets(TargetType targetType, ref bool __result)
     {
         if (__result) return;
         if (CustomTargetType.SingleTargeting.ContainsKey(targetType)) __result = true;
@@ -416,7 +421,8 @@ internal class IsSingleTargetPatch
 [HarmonyPatch(typeof(NTargetManager), nameof(NTargetManager.AllowedToTargetCreature))]
 internal class AllowedToTargetCreaturePatch
 {
-    public static bool Prefix(NTargetManager __instance, Creature creature, ref bool __result)
+    [HarmonyPrefix]
+    static bool CustomTargetingAllowed(NTargetManager __instance, Creature creature, ref bool __result)
     {
         CustomTargetType.SingleTargeting.TryGetValue(__instance._validTargetsType, out var func);
         if (func == null) return true;
@@ -433,7 +439,8 @@ internal class AllowedToTargetCreaturePatch
 [HarmonyPatch(typeof(NCardPlay), nameof(NCardPlay.TryPlayCard))]
 internal class TryPlayCardPatch
 {
-    public static bool Prefix(NCardPlay __instance, Creature? target)
+    [HarmonyPrefix]
+    static bool StopPlayIfCustomTargetInvalid(NCardPlay __instance, Creature? target)
     {
         var card = __instance.Card;
         if (card == null || !CustomTargetType.SingleTargeting.ContainsKey(card.TargetType)) return true;
@@ -483,7 +490,8 @@ internal class TryPlayCardPatch
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.CanPlayTargeting))]
 internal class CanPlayTargetingPatch
 {
-    public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
+    [HarmonyPrefix]
+    static bool CustomTargetValidityChecks(CardModel __instance, Creature? target, ref bool __result)
     {
         if (target == null) return true;
         CustomTargetType.SingleTargeting.TryGetValue(__instance.TargetType, out var func);
@@ -501,7 +509,8 @@ internal class CanPlayTargetingPatch
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.IsValidTarget))]
 internal class IsValidTargetPatch
 {
-    public static bool Prefix(CardModel __instance, Creature? target, ref bool __result)
+    [HarmonyPrefix]
+    static bool CustomValidTargets(CardModel __instance, Creature? target, ref bool __result)
     {
         if (target == null) return true;
         CustomTargetType.SingleTargeting.TryGetValue(__instance.TargetType, out var func);

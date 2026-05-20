@@ -16,6 +16,17 @@ public abstract class CustomMonsterModel : MonsterModel, ICustomModel, ISceneCon
 
     /// <summary>
     /// Use if you want to generate creature visuals entirely yourself.
+    /// If you do, you'll also need to override AssetPaths to not include VisualPath.
+    /// <code>public override IEnumerable&lt;string&gt; AssetPaths
+    /// {
+    ///     get
+    ///     {
+    ///         List&lt;string&gt; assetPaths = [];
+    ///         foreach (AbstractIntent intent in GetIntents())
+    ///             assetPaths.AddRange(intent.AssetPaths);
+    ///        return assetPaths;
+    ///     }
+    /// }</code>
     /// Otherwise, just override CustomVisualPath.
     /// </summary>
     /// <returns></returns>
