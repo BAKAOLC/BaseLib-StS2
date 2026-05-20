@@ -32,10 +32,9 @@ public static class ExtendedSaveHandlers<DataType, SerializableType> where Seria
             Dictionaries.TryAdd(typeof(T), dict = new Dictionary<string, T>()) ? (Dictionary<string, T>)dict : throw new Exception("Failed to add missing type to dictionary");
 
         /// <summary>
-        /// Creates data from a card.
-        /// Used when serializing a card.
+        /// Creates data from an instance.
+        /// Used when serializing.
         /// </summary>
-        /// <param name="card"></param>
         public ExtendedSaveData(DataType data)
         {
             foreach (var save in RegisteredSaves)
@@ -200,14 +199,14 @@ public static class ExtendedSaveHandlers<DataType, SerializableType> where Seria
     }
 
     /// <summary>
-    /// Loads data from a loaded/deserialized serializable card to a new card.
+    /// Loads data from a loaded/deserialized serializable to a new instance.
     /// </summary>
-    public static void Load(SerializableType dataSource, DataType card)
+    public static void Load(SerializableType dataSource, DataType holder)
     {
         var data = ExtendedData[dataSource];
         foreach (var save in RegisteredSaves)
         {
-            save.Setter.Invoke(card, data);
+            save.Setter.Invoke(holder, data);
         }
     }
 }
