@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Serialization;
+using MegaCrit.Sts2.Core.Saves.Runs;
 
 namespace BaseLib.Abstracts;
 
@@ -28,8 +29,8 @@ public abstract class CardModifier : AbstractModel
         ExtendedSaveTypes.PropertyFunc<ModifierSave, Dictionary<string, string>>("AdditionalProperties"));
         
         
-        ExtendedSerializableCard.RegisterCardSave("BaseLibCardModifiers", 
-            card => DirectModifiers(card).Select(mod => ModifierSave.FromModifier(mod)).ToList(),
+        ExtendedSaveHandlers<CardModel, SerializableCard>.RegisterSave("BaseLibCardModifiers", 
+            card => DirectModifiers(card).Select(ModifierSave.FromModifier).ToList(),
             LoadModifierSaves,
             (saves, writer) =>
             {

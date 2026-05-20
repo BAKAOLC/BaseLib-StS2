@@ -2,9 +2,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Serialization;
 using MegaCrit.Sts2.Core.Saves;
+using MegaCrit.Sts2.Core.Saves.Runs;
 
 namespace BaseLib.Patches.Saves;
 
@@ -12,7 +14,7 @@ namespace BaseLib.Patches.Saves;
 public class ExtendedSaveTypes
 {
     [HarmonyPostfix]
-    public static void GetExtraType(MegaCritSerializerContext __instance, Type type, JsonSerializerOptions options, ref JsonTypeInfo? __result)
+    static void GetExtraType(MegaCritSerializerContext __instance, Type type, JsonSerializerOptions options, ref JsonTypeInfo? __result)
     {
         if (__result != null) return;
         
@@ -24,6 +26,11 @@ public class ExtendedSaveTypes
     }
     
     private static readonly Dictionary<Type, Func<IJsonTypeInfoResolver, JsonSerializerOptions, JsonTypeInfo>> ExtendedTypes = [];
+
+    public static bool IsSaveTypeSupported(Type t)
+    {
+        return MegaCritSerializerContext.Default.GetTypeInfo(t) != null;
+    }
     
     /// <summary>
     /// Attempts to register a saved value. Returns false if the target type is unsupported.
@@ -35,7 +42,7 @@ public class ExtendedSaveTypes
 
         if (targetType.IsAssignableTo(typeof(CardModel)))
         {
-            ExtendedSerializableCard.RegisterCardSave<T>(id,
+            ExtendedSaveHandlers<CardModel, SerializableCard>.RegisterSave<T>(id,
                 card =>
                 {
                     if (card is not TargetType target) return default;
@@ -49,6 +56,40 @@ public class ExtendedSaveTypes
 
             return true;
         }
+        if (targetType.IsAssignableTo(typeof(PotionModel)))
+        {
+            ExtendedSaveHandlers<PotionModel, SerializablePotion>.RegisterSave<T>(id,
+                card =>
+                {
+                    if (card is not TargetType target) return default;
+                    return getter(target);
+                },
+                (card, val) =>
+                {
+                    if (card is not TargetType target) return;
+                    setter(target, val);
+                }, serializer, deserializer);
+
+            return true;
+        }
+        if (targetType.IsAssignableTo(typeof(Player)))
+        {
+            ExtendedSaveHandlers<Player, SerializablePlayer>.RegisterSave<T>(id,
+                card =>
+                {
+                    if (card is not TargetType target) return default;
+                    return getter(target);
+                },
+                (card, val) =>
+                {
+                    if (card is not TargetType target) return;
+                    setter(target, val);
+                }, serializer, deserializer);
+
+            return true;
+        }
+        
+        BaseLibMain.Logger.Warn($"Could not register saved value {id}; type {typeof(TargetType).Name} is not set up in ExtendedSaveTypes.RegisterSavedValue");
         return false;
     }
     

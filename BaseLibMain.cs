@@ -4,6 +4,7 @@ using BaseLib.Abstracts;
 using BaseLib.Config;
 using BaseLib.Extensions;
 using BaseLib.Patches.Content;
+using BaseLib.Patches.Saves;
 using BaseLib.Patches.Utils;
 using BaseLib.Utils.NodeFactories;
 using HarmonyLib;
@@ -53,6 +54,7 @@ public static class BaseLibMain
 
         TheBigPatchToCardPileCmdAdd.Patch(MainHarmony);
         CustomBadgesPatch.Patch(MainHarmony);
+        ExtendedSavePatches.Patch(MainHarmony);
 
         MainHarmony.TryPatchAll(assembly);
     }

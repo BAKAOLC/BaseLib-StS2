@@ -24,12 +24,16 @@ namespace BaseLib.Patches;
 [HarmonyPatch(typeof(LocManager), nameof(LocManager.Initialize))] 
 class PostModInitPatch
 {
+    private static bool _initialized = false;
     private static bool _anyModModifiesGameplay = false;
     public static bool CanModifyGameplay => _anyModModifiesGameplay;
     
     [HarmonyPrefix]
     private static void PostModInit()
     {
+        if (_initialized) return;
+        _initialized = true;
+        
         BaseLibMain.Logger.Info("Performing post-mod init patch");
 
         foreach (var mod in ModManager.GetLoadedMods())

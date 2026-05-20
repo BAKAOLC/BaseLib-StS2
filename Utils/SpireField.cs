@@ -244,6 +244,10 @@ public class SavedSpireField<TKey, TVal> : SpireField<TKey, TVal>, ISavedSpireFi
         {
             IsBasegameSupported = false;
         }
+        else
+        {
+            IsBasegameSupported = true;
+        }
         
         SavedSpireFieldPatch.Register(this);
     }
@@ -302,6 +306,12 @@ public class SavedSpireField<TKey, TVal> : SpireField<TKey, TVal>, ISavedSpireFi
                 return false;
             }
         }
+
+        if (!ExtendedSaveTypes.IsSaveTypeSupported(typeof(TVal)))
+        {
+            throw new ArgumentException($"Type {typeof(TVal).Name} is not registered for saving; register the type with ExtendedSaveTypes in your mod's initializer.");
+        }
+        
         return ExtendedSaveTypes.RegisterSavedValue<TKey, TVal>($"spirefield_{Name}", Get, Set, serializer, deserializer);
     }
 

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections;
 using System.Text;
 
 namespace BaseLib.Extensions;
@@ -6,6 +6,10 @@ namespace BaseLib.Extensions;
 public static class IEnumerableExtensions
 {
     public static string AsReadable<T>(this IEnumerable<T> enumerable, string separator = ",")
+    {
+        return string.Join(separator, enumerable);
+    }
+    public static string AsReadable(this IEnumerable enumerable, string separator = ",")
     {
         return string.Join(separator, enumerable);
     }

@@ -1,0 +1,407 @@
+﻿using System.Collections;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+using BaseLib.Extensions;
+using BaseLib.Utils;
+using BaseLib.Utils.Patching;
+using HarmonyLib;
+using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Multiplayer.Serialization;
+using MegaCrit.Sts2.Core.Saves;
+using MegaCrit.Sts2.Core.Saves.Runs;
+
+namespace BaseLib.Patches.Saves;
+
+public static class ExtendedSaveHandlers<DataType, SerializableType> where SerializableType : class
+{
+    public class ExtendedSaveData
+    {
+        /// <summary>
+        /// Dictionaries for each type of data that will be saved.
+        /// </summary>
+        public readonly Dictionary<Type, IDictionary> Dictionaries = [];
+        /// <summary>
+        /// Gets or creates the dictionary for a specific type of data.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public Dictionary<string, T> DictForType<T>() => 
+            Dictionaries.TryGetValue(typeof(T), out var dict) ? (Dictionary<string, T>)dict : 
+            Dictionaries.TryAdd(typeof(T), dict = new Dictionary<string, T>()) ? (Dictionary<string, T>)dict : throw new Exception("Failed to add missing type to dictionary");
+
+        /// <summary>
+        /// Creates data from a card.
+        /// Used when serializing a card.
+        /// </summary>
+        /// <param name="card"></param>
+        public ExtendedSaveData(DataType data)
+        {
+            foreach (var save in RegisteredSaves)
+            {
+                save.Getter.Invoke(data, this);
+            }
+        }
+
+        /// <summary>
+        /// Creates an empty data holder.
+        /// Used for loading from json.
+        /// </summary>
+        public ExtendedSaveData()
+        {
+        
+        }
+    }
+
+    private static NotNullSpireField<SerializableType, ExtendedSaveData>? _extendedData;
+    public static NotNullSpireField<SerializableType, ExtendedSaveData> ExtendedData => 
+        _extendedData ??= new NotNullSpireField<SerializableType, ExtendedSaveData>(() => new ExtendedSaveData());
+
+    private static List<ExtendedSaveInfo<DataType, ExtendedSaveData>>? _registeredSaves;
+    public static List<ExtendedSaveInfo<DataType, ExtendedSaveData>> RegisteredSaves =>
+        _registeredSaves ??= [];
+
+    private static Dictionary<Type, Func<JsonSerializerOptions, JsonPropertyInfo>>? _saveValueTypes;
+    private static Dictionary<Type, Func<JsonSerializerOptions, JsonPropertyInfo>> SaveValueTypes =>
+        _saveValueTypes ??= [];
+    
+    private static bool _initializedSaveProps;
+    
+    /// <summary>
+    /// Registers a value to be saved attached to a specific serializable type and be copied in its Serialize/Deserialize methods.
+    /// </summary>
+    /// <param name="id">The ID of the saved value. Should ideally be a unique string involving the mod's ID.</param>
+    /// <param name="getter">Gets the value to save given an instance.</param>
+    /// <param name="setter">Given a saved value, attaches it to an instance.</param>
+    /// <typeparam name="T">A type that implements IPacketSerializable and has a no-parameter constructor.</typeparam>
+    public static void RegisterSave<T>(string id, Func<DataType, T?> getter, Action<DataType, T?> setter)
+        where T : IPacketSerializable, new()
+    {
+        RegisterSave(id, getter, setter, 
+            (val, writer) => val.Serialize(writer),
+            (reader) =>
+            {
+                var val = new T();
+                val.Deserialize(reader);
+                return val;
+            });
+    }
+    
+    /// <summary>
+    /// Registers a value to be saved attached to a specific serializable type and be copied in its Serialize/Deserialize methods.
+    /// </summary>
+    /// <param name="id">The ID of the saved value. Should ideally be a unique string involving the mod's ID.</param>
+    /// <param name="getter">Gets the value to save given an instance.</param>
+    /// <param name="setter">Given a saved value, attaches it to an instance.</param>
+    /// <param name="serializer">Writes the saved value with a PacketWriter.</param>
+    /// <param name="deserializer">Retrives the saved value from a PacketReader.</param>
+    /// <typeparam name="T">The saved type.</typeparam>
+    public static void RegisterSave<T>(string id, Func<DataType, T?> getter, Action<DataType, T?> setter,
+        Action<T, PacketWriter> serializer, Func<PacketReader, T> deserializer)
+    {
+        ExtendedSaveTypes.RegisterDictionarySaveType<string, T>();
+        
+        if (!SaveValueTypes.ContainsKey(typeof(T))) 
+        {
+            if (_initializedSaveProps)
+            {
+                BaseLibMain.Logger.Warn($"Saved types for {typeof(SerializableType).Name} have already been registered; registered save values of type {typeof(T).Name} will not be saved.");
+            }
+
+            SaveValueTypes.Add(typeof(T),
+                options => JsonMetadataServices.CreatePropertyInfo(options,
+                    SavePatchUtils.QuickProps<SerializableType, Dictionary<string, T>>(
+                        $"save_dict_{MakeTypeName(typeof(T))}",
+                        obj => ExtendedData[obj].DictForType<T>(),
+                        (obj, value) =>
+                        {
+                            value ??= [];
+                            ExtendedData[obj].Dictionaries[typeof(T)] = value;
+                        })
+                    )
+                );
+        }
+
+            
+        RegisteredSaves.InsertSorted(new (id,
+            (model, data) =>
+            {
+                var val = getter(model);
+                if (val == null) return;
+                if (!data.DictForType<T>().TryAdd(id, val))
+                {
+                    BaseLibMain.Logger.Error($"Duplicate {typeof(DataType).Name} save key: [{typeof(T).Name}] {id}");
+                }
+            },
+            (model, data) =>
+            {
+                if (data.DictForType<T>().TryGetValue(id, out var value))
+                {
+                    setter(model, value);
+                }
+            },
+            (data, writer) =>
+            {
+                var val = data.DictForType<T>().GetValueOrDefault(id);
+                if (val == null)
+                {
+                    writer.WriteBool(false);
+                }
+                else
+                {
+                    writer.WriteBool(true);
+                    serializer(val, writer);
+                }
+            },
+            (data, reader) =>
+            {
+                bool exists = reader.ReadBool();
+                if (exists)
+                {
+                    var val = deserializer(reader);
+                    if (val != null)
+                        data.DictForType<T>()[id] = val;
+                }
+            }
+        ));
+    }
+
+    private static string MakeTypeName(Type t)
+    {
+        var name = GetShortName(t);
+        if (t.IsGenericType)
+        {
+            return $"{name}[{t.GenericTypeArguments.Join(MakeTypeName, ",")}]";
+        }
+        return $"{name}";
+    }
+    private static string GetShortName(Type t)
+    {
+        if (t.IsAssignableTo(typeof(IList))) return "List";
+        if (t.IsAssignableTo(typeof(IDictionary))) return "Dictionary";
+        return t.FullName == null || t.FullName.StartsWith("System") ? t.Name : t.FullName;
+    }
+
+    /// <summary>
+    /// Creates the JsonPropertyInfo for patch to serializable prop maker in json serialization context
+    /// </summary>
+    /// <param name="options"></param>
+    /// <returns></returns>
+    public static IEnumerable<JsonPropertyInfo> CreateExtendedProperties(JsonSerializerOptions options)
+    {
+        BaseLibMain.Logger.Info($"Adding custom save data to {typeof(SerializableType).Name}.");
+        //All save data types must be initialized by this point. Any added later will not be saved/loaded.
+        _initializedSaveProps = true;
+        foreach (var saveType in SaveValueTypes)
+        {
+            yield return saveType.Value(options);
+        }
+    }
+
+    /// <summary>
+    /// Loads data from a loaded/deserialized serializable card to a new card.
+    /// </summary>
+    public static void Load(SerializableType dataSource, DataType card)
+    {
+        var data = ExtendedData[dataSource];
+        foreach (var save in RegisteredSaves)
+        {
+            save.Setter.Invoke(card, data);
+        }
+    }
+}
+
+public static class ExtendedSavePatches
+{
+    public static void Patch(Harmony harmony)
+    {
+        AddContext<CardModel, SerializableCard>(harmony);
+        AddContext<PotionModel, SerializablePotion>(harmony);
+        AddContext<Player, SerializablePlayer>(harmony);
+    }
+
+    private static void AddContext<DataType, SerializableType>(Harmony harmony) where SerializableType : class
+    {
+        var name = typeof(SerializableType).Name + "PropInit";
+        var method = typeof(MegaCritSerializerContext).DeclaredMethod(name);
+        if (method == null)
+        {
+            BaseLibMain.Logger.Error($"Unable to find PropInit for type {typeof(SerializableType).Name}");
+            return;
+        }
+
+        harmony.Patch(method, postfix: 
+            typeof(GenericPostfix<DataType, SerializableType>).Method("AdjustPropArray"));
+    }
+
+    class GenericPostfix<DataType, SerializableType> where SerializableType : class
+    {
+        static void AdjustPropArray(JsonSerializerOptions options, ref JsonPropertyInfo[] __result)
+        {
+            int oldCount = __result.Length;
+            __result = [..__result,
+                ..ExtendedSaveHandlers<DataType, SerializableType>.CreateExtendedProperties(options)
+            ];
+            BaseLibMain.Logger.Info($"Added {__result.Length - oldCount} new properties to SerializableCard");
+        }
+    }
+    
+    /*--------------------- Serialization Patches ---------------------*/
+    [HarmonyPatch(typeof(CardModel), nameof(CardModel.ToSerializable))]
+    static class PrepExtendedCardData
+    {
+        [HarmonyPostfix]
+        static void ExtendedDataForCard(CardModel __instance, SerializableCard __result)
+        {
+            var data = new ExtendedSaveHandlers<CardModel, SerializableCard>.ExtendedSaveData(__instance);
+            ExtendedSaveHandlers<CardModel, SerializableCard>.ExtendedData[__result] = data;
+        }
+    }
+
+    [HarmonyPatch(typeof(CardModel), nameof(CardModel.FromSerializable))]
+    static class LoadExtendedCardData
+    {
+        [HarmonyTranspiler]
+        static List<CodeInstruction> InsertLoad(IEnumerable<CodeInstruction> code)
+        {
+            return new InstructionPatcher(code)
+                    .Match(new InstructionMatcher()
+                        .call(typeof(SavedProperties), nameof(SavedProperties.Fill)))
+                    .TakeLabels(out var labels)
+                    .Insert([
+                        CodeInstruction.LoadArgument(0).WithLabels(labels), //SerializableCard
+                        CodeInstruction.LoadLocal(0), //Creating card
+                        CodeInstruction.Call(typeof(ExtendedSaveHandlers<CardModel, SerializableCard>), nameof(ExtendedSaveHandlers<CardModel, SerializableCard>.Load))
+                    ])
+                ;
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableCard), nameof(SerializableCard.Serialize))]
+    static class SerializeExtendedCardData
+    {
+        [HarmonyPrefix] //Prefix instead of postfix due to inconsistent written length of SerializableCard
+        //Difference between basegame is not an issue as this serialization is only used for net communication, not saves
+        static void WriteExtended(SerializableCard __instance, PacketWriter writer)
+        {
+            var extendedData = ExtendedSaveHandlers<CardModel, SerializableCard>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<CardModel, SerializableCard>.RegisteredSaves)
+            {
+                saveValue.Serializer(extendedData, writer);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableCard), nameof(SerializableCard.Deserialize))]
+    static class DeserializeExtendedCardData
+    {
+        [HarmonyPrefix] //Prefix instead of postfix due to inconsistent written length of SerializableCard
+        static void ReadExtended(SerializableCard __instance, PacketReader reader)
+        {
+            var extendedData = ExtendedSaveHandlers<CardModel, SerializableCard>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<CardModel, SerializableCard>.RegisteredSaves)
+            {
+                saveValue.Deserializer(extendedData, reader);
+            }
+        }
+    }
+    
+    [HarmonyPatch(typeof(PotionModel), nameof(PotionModel.ToSerializable))]
+    static class PrepExtendedPotionData
+    {
+        [HarmonyPostfix]
+        static void ExtendedDataForPotion(PotionModel __instance, SerializablePotion __result)
+        {
+            var data = new ExtendedSaveHandlers<PotionModel, SerializablePotion>.ExtendedSaveData(__instance);
+            ExtendedSaveHandlers<PotionModel, SerializablePotion>.ExtendedData[__result] = data;
+        }
+    }
+
+    [HarmonyPatch(typeof(PotionModel), nameof(PotionModel.FromSerializable))]
+    static class LoadExtendedPotionData
+    {
+        [HarmonyPostfix]
+        static void LoadExtendedData(SerializablePotion save, PotionModel __result)
+        {
+            ExtendedSaveHandlers<PotionModel, SerializablePotion>.Load(save, __result);
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializablePotion), nameof(SerializablePotion.Serialize))]
+    static class SerializeExtendedPotionData
+    {
+        [HarmonyPostfix]
+        static void WriteExtended(SerializablePotion __instance, PacketWriter writer)
+        {
+            var extendedData = ExtendedSaveHandlers<PotionModel, SerializablePotion>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<PotionModel, SerializablePotion>.RegisteredSaves)
+            {
+                saveValue.Serializer(extendedData, writer);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializablePotion), nameof(SerializablePotion.Deserialize))]
+    static class DeserializeExtendedPotionData
+    {
+        [HarmonyPostfix]
+        static void ReadExtended(SerializablePotion __instance, PacketReader reader)
+        {
+            var extendedData = ExtendedSaveHandlers<PotionModel, SerializablePotion>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<PotionModel, SerializablePotion>.RegisteredSaves)
+            {
+                saveValue.Deserializer(extendedData, reader);
+            }
+        }
+    }
+    
+    [HarmonyPatch(typeof(Player), nameof(Player.ToSerializable))]
+    static class PrepExtendedPlayerData
+    {
+        [HarmonyPostfix]
+        static void ExtendedDataForPlayer(Player __instance, SerializablePlayer __result)
+        {
+            var data = new ExtendedSaveHandlers<Player, SerializablePlayer>.ExtendedSaveData(__instance);
+            ExtendedSaveHandlers<Player, SerializablePlayer>.ExtendedData[__result] = data;
+        }
+    }
+
+    [HarmonyPatch(typeof(Player), nameof(Player.FromSerializable))]
+    static class LoadExtendedPlayerData
+    {
+        [HarmonyPostfix]
+        static void LoadExtendedData(SerializablePlayer save, Player __result)
+        {
+            ExtendedSaveHandlers<Player, SerializablePlayer>.Load(save, __result);
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializablePlayer), nameof(SerializablePlayer.Serialize))]
+    static class SerializeExtendedPlayerData
+    {
+        [HarmonyPostfix]
+        static void WriteExtended(SerializablePlayer __instance, PacketWriter writer)
+        {
+            var extendedData = ExtendedSaveHandlers<Player, SerializablePlayer>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<Player, SerializablePlayer>.RegisteredSaves)
+            {
+                saveValue.Serializer(extendedData, writer);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializablePlayer), nameof(SerializablePlayer.Deserialize))]
+    static class DeserializeExtendedPlayerData
+    {
+        [HarmonyPostfix]
+        static void ReadExtended(SerializablePlayer __instance, PacketReader reader)
+        {
+            var extendedData = ExtendedSaveHandlers<Player, SerializablePlayer>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<Player, SerializablePlayer>.RegisteredSaves)
+            {
+                saveValue.Deserializer(extendedData, reader);
+            }
+        }
+    }
+}
