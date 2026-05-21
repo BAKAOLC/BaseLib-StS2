@@ -29,11 +29,20 @@ public class ExtendedSaveTypes
     
     private static readonly Dictionary<Type, Func<IJsonTypeInfoResolver, JsonSerializerOptions, JsonTypeInfo>> ExtendedTypes = [];
 
+    /// <summary>
+    /// Returns true if the type has TypeInfo available in the serializer context.
+    /// Type info can be added by calling the RegisterSaveType methods on this class.
+    /// </summary>
     public static bool IsSaveTypeSupported(Type t)
     {
         return MegaCritSerializerContext.Default.GetTypeInfo(t) != null;
     }
 
+    /// <summary>
+    /// Returns true if BaseLib supports saving values on this type.
+    /// </summary>
+    /// <param name="t"></param>
+    /// <returns></returns>
     public static bool IsSaveHolderSupported(Type t)
     {
         return t.IsAssignableTo(typeof(CardModel))
