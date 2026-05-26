@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using BaseLib.Patches.Content;
 using BaseLib.Utils;
 using Godot;
@@ -162,12 +163,12 @@ internal static class ModelDbTargetTypeInitPatch
         
         CustomTargetType.RegisterMultiTargetType(CustomTargetType.AllLowestHpEnemies,
             target => target is { IsAlive: true,  IsEnemy: true } 
-                      && target.CurrentHp == target.CombatState!.Enemies
+                      && target.CurrentHp == BetaMainCompatibility.Creature_.WrappedCombatState(target)!.Enemies
                 .Where(e => e.IsAlive)
                 .Min(e => e.CurrentHp));
         CustomTargetType.RegisterMultiTargetType(CustomTargetType.AllHighestHpEnemies,
             target => target is { IsAlive: true, IsEnemy: true} &&
-                      target.CurrentHp == target.CombatState!.Enemies
+                      target.CurrentHp == BetaMainCompatibility.Creature_.WrappedCombatState(target)!.Enemies
             .Where(e => e.IsAlive)
             .Max(e => e.CurrentHp));
         
@@ -236,6 +237,8 @@ internal class AttackCommandGetPossibleTargetsPatch
 /// </summary>
 public static class AttackCommandExtensions
 {
+    private static readonly FieldInfo AttackCommandCombatState = typeof(AttackCommand).DeclaredField("_combatState");
+    
     /// <summary>
     /// Configures this <see cref="AttackCommand"/> to hit only the creatures in
     /// <paramref name="targets"/>, bypassing the vanilla opponent-set logic.
@@ -247,7 +250,9 @@ public static class AttackCommandExtensions
         var list = targets.ToList();
         AttackCommandGetPossibleTargetsPatch.CustomTargets.Add(
             cmd, new StrongBox<IReadOnlyList<Creature>>(list));
-        cmd._combatState = cmd.Attacker?.CombatState;
+        if (cmd.Attacker == null) return cmd;
+        
+        AttackCommandCombatState.SetValue(cmd, BetaMainCompatibility.Creature_.CombatState.Get(cmd.Attacker));
         return cmd;
     }
 }

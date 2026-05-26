@@ -55,12 +55,8 @@ public abstract class CustomEventModel : EventModel, ICustomModel, ILocalization
     }
     
     /// <summary>
-    /// Generate an EventOption with localization based on the passed delegate's method name.
+    /// Creates an EventOption with localization based on the passed delegate's method name.
     /// </summary>
-    /// <param name="onChosen"></param>
-    /// <param name="pageKey"></param>
-    /// <param name="tips"></param>
-    /// <returns></returns>
     protected EventOption Option(Func<Task>? onChosen, string pageKey = _initialPageKey, params IHoverTip[] tips)
     {
         var clickMethod = onChosen?.Method;
@@ -80,11 +76,19 @@ public abstract class CustomEventModel : EventModel, ICustomModel, ILocalization
         return new EventOption(this, onChosen, $"{Id.Entry}.pages.{pageKey}.options.{StringHelper.Slugify(name)}", tips);
     }
     
+    /// <summary>
+    /// Creates an EventOption with localization based on the passed delegate's method name.
+    /// </summary>
     protected EventOption Option(Func<Task>? onChosen, IEnumerable<IHoverTip> tips, string pageKey = _initialPageKey)
     {
         var clickMethod = onChosen?.Method;
         string name = "UNKNOWN";
-        if (clickMethod == null)
+        if (onChosen == null)
+        {
+            BaseLibMain.Logger.Warn(
+                $"Defining event option with no effect in event {Id.Entry}, use LockedOption rather than Option");
+        }
+        else if (clickMethod == null)
         {
             BaseLibMain.Logger.Error("Unable to get delegate method for CustomEventModel.Option; " +
                                      "provide an explicit title and description LocString if not passing a method directly.");
@@ -97,6 +101,14 @@ public abstract class CustomEventModel : EventModel, ICustomModel, ILocalization
             name = clickMethod.Name;
         }
         return new EventOption(this, onChosen, $"{Id.Entry}.pages.{pageKey}.options.{StringHelper.Slugify(name)}", tips);
+    }
+
+    /// <summary>
+    /// Creates a locked EventOption using localization key ID.pages.<paramref name="pageKey"/>.options.<paramref name="locKey"/>
+    /// </summary>
+    protected EventOption LockedOption(string locKey, string pageKey = _initialPageKey, params IHoverTip[] tips)
+    {
+        return new EventOption(this, null, $"{Id.Entry}.pages.{pageKey}.options.{locKey}", tips);
     }
 
     /// <summary>
