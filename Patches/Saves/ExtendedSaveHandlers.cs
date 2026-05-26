@@ -211,6 +211,34 @@ public static class ExtendedSaveHandlers<DataType, SerializableType> where Seria
             save.Setter.Invoke(holder, data);
         }
     }
+
+    /// <summary>
+    /// Write data of each registered save to a PacketWriter.
+    /// </summary>
+    public static void Write(SerializableType dataSource, PacketWriter writer)
+    {
+        if (!PostModInitPatch.CanModifyGameplay) return;
+        
+        var extendedData = ExtendedData[dataSource];
+        foreach (var saveValue in RegisteredSaves)
+        {
+            saveValue.Serializer(extendedData, writer);
+        }
+    }
+
+    /// <summary>
+    /// Read data of each registered save from a PacketReader.
+    /// </summary>
+    public static void Read(SerializableType dataSource, PacketReader reader)
+    {
+        if (!PostModInitPatch.CanModifyGameplay) return;
+        
+        var extendedData = ExtendedData[dataSource];
+        foreach (var saveValue in RegisteredSaves)
+        {
+            saveValue.Deserializer(extendedData, reader);
+        }
+    }
 }
 
 /// <summary>
@@ -292,11 +320,7 @@ public static class ExtendedSavePatches
         //Difference between basegame is not an issue as this serialization is only used for net communication, not saves
         static void WriteExtended(SerializableCard __instance, PacketWriter writer)
         {
-            var extendedData = ExtendedSaveHandlers<CardModel, SerializableCard>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<CardModel, SerializableCard>.RegisteredSaves)
-            {
-                saveValue.Serializer(extendedData, writer);
-            }
+            ExtendedSaveHandlers<CardModel, SerializableCard>.Write(__instance, writer);
         }
     }
 
@@ -306,11 +330,7 @@ public static class ExtendedSavePatches
         [HarmonyPrefix] //Prefix instead of postfix due to inconsistent written length of SerializableCard
         static void ReadExtended(SerializableCard __instance, PacketReader reader)
         {
-            var extendedData = ExtendedSaveHandlers<CardModel, SerializableCard>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<CardModel, SerializableCard>.RegisteredSaves)
-            {
-                saveValue.Deserializer(extendedData, reader);
-            }
+            ExtendedSaveHandlers<CardModel, SerializableCard>.Read(__instance, reader);
         }
     }
     
@@ -350,11 +370,7 @@ public static class ExtendedSavePatches
         //Difference between basegame is not an issue as this serialization is only used for net communication, not saves
         static void WriteExtended(SerializableRelic __instance, PacketWriter writer)
         {
-            var extendedData = ExtendedSaveHandlers<RelicModel, SerializableRelic>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<RelicModel, SerializableRelic>.RegisteredSaves)
-            {
-                saveValue.Serializer(extendedData, writer);
-            }
+            ExtendedSaveHandlers<RelicModel, SerializableRelic>.Write(__instance, writer);
         }
     }
 
@@ -364,11 +380,7 @@ public static class ExtendedSavePatches
         [HarmonyPrefix] //Prefix instead of postfix due to inconsistent written length of SerializableRelic
         static void ReadExtended(SerializableRelic __instance, PacketReader reader)
         {
-            var extendedData = ExtendedSaveHandlers<RelicModel, SerializableRelic>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<RelicModel, SerializableRelic>.RegisteredSaves)
-            {
-                saveValue.Deserializer(extendedData, reader);
-            }
+            ExtendedSaveHandlers<RelicModel, SerializableRelic>.Read(__instance, reader);
         }
     }
     
@@ -399,11 +411,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void WriteExtended(SerializablePotion __instance, PacketWriter writer)
         {
-            var extendedData = ExtendedSaveHandlers<PotionModel, SerializablePotion>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<PotionModel, SerializablePotion>.RegisteredSaves)
-            {
-                saveValue.Serializer(extendedData, writer);
-            }
+            ExtendedSaveHandlers<PotionModel, SerializablePotion>.Write(__instance, writer);
         }
     }
 
@@ -413,11 +421,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void ReadExtended(SerializablePotion __instance, PacketReader reader)
         {
-            var extendedData = ExtendedSaveHandlers<PotionModel, SerializablePotion>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<PotionModel, SerializablePotion>.RegisteredSaves)
-            {
-                saveValue.Deserializer(extendedData, reader);
-            }
+            ExtendedSaveHandlers<PotionModel, SerializablePotion>.Read(__instance, reader);
         }
     }
     
@@ -448,11 +452,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void WriteExtended(SerializablePlayer __instance, PacketWriter writer)
         {
-            var extendedData = ExtendedSaveHandlers<Player, SerializablePlayer>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<Player, SerializablePlayer>.RegisteredSaves)
-            {
-                saveValue.Serializer(extendedData, writer);
-            }
+            ExtendedSaveHandlers<Player, SerializablePlayer>.Write(__instance, writer);
         }
     }
 
@@ -462,11 +462,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void ReadExtended(SerializablePlayer __instance, PacketReader reader)
         {
-            var extendedData = ExtendedSaveHandlers<Player, SerializablePlayer>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<Player, SerializablePlayer>.RegisteredSaves)
-            {
-                saveValue.Deserializer(extendedData, reader);
-            }
+            ExtendedSaveHandlers<Player, SerializablePlayer>.Read(__instance, reader);
         }
     }
     
@@ -497,11 +493,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void WriteExtended(SerializableReward __instance, PacketWriter writer)
         {
-            var extendedData = ExtendedSaveHandlers<Reward, SerializableReward>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<Reward, SerializableReward>.RegisteredSaves)
-            {
-                saveValue.Serializer(extendedData, writer);
-            }
+            ExtendedSaveHandlers<Reward, SerializableReward>.Write(__instance, writer);
         }
     }
 
@@ -511,11 +503,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void ReadExtended(SerializableReward __instance, PacketReader reader)
         {
-            var extendedData = ExtendedSaveHandlers<Reward, SerializableReward>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<Reward, SerializableReward>.RegisteredSaves)
-            {
-                saveValue.Deserializer(extendedData, reader);
-            }
+            ExtendedSaveHandlers<Reward, SerializableReward>.Read(__instance, reader);
         }
     }
     
@@ -567,11 +555,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void WriteExtended(SerializableRun __instance, PacketWriter writer)
         {
-            var extendedData = ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<IRunState, SerializableRun>.RegisteredSaves)
-            {
-                saveValue.Serializer(extendedData, writer);
-            }
+            ExtendedSaveHandlers<IRunState, SerializableRun>.Write(__instance, writer);
         }
     }
 
@@ -581,11 +565,7 @@ public static class ExtendedSavePatches
         [HarmonyPostfix]
         static void ReadExtended(SerializableRun __instance, PacketReader reader)
         {
-            var extendedData = ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__instance];
-            foreach (var saveValue in ExtendedSaveHandlers<IRunState, SerializableRun>.RegisteredSaves)
-            {
-                saveValue.Deserializer(extendedData, reader);
-            }
+            ExtendedSaveHandlers<IRunState, SerializableRun>.Read(__instance, reader);
         }
     }
 }
