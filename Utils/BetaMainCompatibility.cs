@@ -12,6 +12,7 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Hooks;
+using MegaCrit.Sts2.Core.HoverTips;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Singleton;
@@ -134,6 +135,32 @@ public class BetaMainCompatibility
                 [0])
             );
     }
+
+    public static class _HoverTipFactory
+    {
+        private static VariableMethod FromPowerDef = new(
+            (typeof(HoverTipFactory), "FromPower",
+                [typeof(int?)],
+                [0],
+                m => m.IsGenericMethod),
+            (typeof(HoverTipFactory), "FromPower",
+                [],
+                [],
+                m => m.IsGenericMethod)
+            );
+
+        public static IHoverTip FromPower<T>() where T : PowerModel
+        {
+            if (FromPowerDef.ParamCount == 1)
+            {
+                return FromPowerDef.InvokeGeneric<IHoverTip, T>(null, [null]);
+            }
+            else
+            {
+                return FromPowerDef.InvokeGeneric<IHoverTip, T>(null);
+            }
+        }
+    }
 }
 
 /// <summary>
@@ -213,7 +240,42 @@ public class VariableReference<T>
 public class VariableMethod
 {
     private MethodInfo? _method;
+
+    private readonly Dictionary<Type, MethodInfo> _genericCalls = [];
+    private readonly int[] _paramIndicies;
     
+    public int ParamCount => _paramIndicies.Length;
+    
+
+    public VariableMethod(params (string, string, Type?[], int[])[] possibleDefinitions) : this(possibleDefinitions.Select(def 
+        => (def.Item1.TryGetType(), def.Item2, def.Item3, def.Item4, (Func<MethodInfo, bool>?) null)).ToArray())
+    {
+    }
+
+    public VariableMethod(params (Type?, string, Type?[], int[])[] possibleDefinitions) : this(possibleDefinitions.Select(def 
+        => (def.Item1, def.Item2, def.Item3, def.Item4, (Func<MethodInfo, bool>?) null)).ToArray())
+    {
+    }
+
+    public VariableMethod(params (Type?, string, Type?[], int[], Func<MethodInfo, bool>?)[] possibleDefinitions)
+    {
+        _paramIndicies = [];
+        foreach (var possible in possibleDefinitions)
+        {
+            if (possible.Item1 == null) continue;
+
+            _method = possible.Item1.GetMethodExt(possible.Item2, extraFilter: possible.Item5, parameterTypes: possible.Item3);
+            if (_method != null)
+            {
+                _paramIndicies = possible.Item4;
+                break;
+            }
+        }
+
+        if (_method == null)
+            throw new Exception($"Failed to get VariableMethod {possibleDefinitions.Join(
+                def => $"[{def.Item1?.Name ?? "UNKNOWN"}.{def.Item2}({def.Item3.Join(paramType => paramType?.Name ?? "ANY")})]")}");
+    }
     
     public void Invoke(object? instance, params object?[] args)
     {
@@ -224,10 +286,6 @@ public class VariableMethod
     {
         return (T?) _method!.Invoke(instance, args);
     }
-
-    private readonly Dictionary<Type, MethodInfo> _genericCalls = [];
-    private readonly int[] _paramIndicies;
-
     public TReturn? InvokeGeneric<TReturn, TGeneric>(object? instance, params object?[] args)
     {
         if (!_genericCalls.TryGetValue(typeof(TGeneric), out var method))
@@ -242,29 +300,19 @@ public class VariableMethod
         
         return (TReturn?) method.Invoke(instance, finalArgs);
     }
-
-    public VariableMethod(params (string, string, Type?[], int[])[] possibleDefinitions) : this(possibleDefinitions.Select(def 
-        => (def.Item1.TryGetType(), def.Item2, def.Item3, def.Item4)).ToArray())
+    public void InvokeGeneric<TGeneric>(object? instance, params object?[] args)
     {
-    }
-    public VariableMethod(params (Type?, string, Type?[], int[])[] possibleDefinitions)
-    {
-        _paramIndicies = [];
-        foreach (var possible in possibleDefinitions)
+        if (!_genericCalls.TryGetValue(typeof(TGeneric), out var method))
         {
-            if (possible.Item1 == null) continue;
-
-            _method = possible.Item1.GetMethodExt(possible.Item2, possible.Item3);
-            if (_method != null)
-            {
-                _paramIndicies = possible.Item4;
-                break;
-            }
+            method = _method!.MakeGenericMethod(typeof(TGeneric));
+            _genericCalls[typeof(TGeneric)] = method;
         }
 
-        if (_method == null)
-            throw new Exception($"Failed to get VariableMethod {possibleDefinitions.Join(
-                def => $"[{def.Item1?.Name ?? "UNKNOWN"}.{def.Item2}({def.Item3.Join(paramType => paramType?.Name ?? "ANY")})]")}");
+        var finalArgs = new object?[_paramIndicies.Length];
+        for (int i = 0; i < _paramIndicies.Length; ++i)
+            finalArgs[i] = args[_paramIndicies[i]];
+        
+        method.Invoke(instance, finalArgs);
     }
 }
 

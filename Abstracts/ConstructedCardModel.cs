@@ -124,7 +124,7 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithPower<T>(int baseVal, int upgrade = 0) where T : PowerModel
     {
         _constructedDynamicVars.Add(new PowerVar<T>(baseVal).WithUpgrade(upgrade));
-        _hoverTips.Add(new(_=>HoverTipFactory.FromPower<T>()));
+        _hoverTips.Add(new(_ => BetaMainCompatibility._HoverTipFactory.FromPower<T>()));
         return this;
     }
 
@@ -134,7 +134,7 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithPower<T>(string name, int baseVal, int upgrade = 0) where T : PowerModel
     {
         _constructedDynamicVars.Add(new PowerVar<T>(name, baseVal).WithUpgrade(upgrade));
-        _hoverTips.Add(new(_=>HoverTipFactory.FromPower<T>()));
+        _hoverTips.Add(new(_ => BetaMainCompatibility._HoverTipFactory.FromPower<T>()));
         return this;
     }
     

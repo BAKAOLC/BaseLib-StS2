@@ -55,6 +55,7 @@ public static class TypeExtensions
     /// <exception cref="AmbiguousMatchException"/>
     public static MethodInfo? GetMethodExt( this Type thisType, 
                                             string name, 
+                                            Func<MethodInfo, bool>? extraFilter = null,
                                             params Type?[] parameterTypes)
     {
         return GetMethodExt(thisType, 
@@ -64,6 +65,7 @@ public static class TypeExtensions
                             | BindingFlags.Public 
                             | BindingFlags.NonPublic
                             | BindingFlags.FlattenHierarchy, 
+                            extraFilter,
                             parameterTypes);
     }
 
@@ -76,12 +78,13 @@ public static class TypeExtensions
     public static MethodInfo? GetMethodExt( this Type thisType, 
                                             string name, 
                                             BindingFlags bindingFlags, 
+                                            Func<MethodInfo, bool>? extraFilter = null,
                                             params Type?[] parameterTypes)
     {
         MethodInfo? matchingMethod = null;
 
         // Check all methods with the specified name, including in base classes
-        GetMethodExt(ref matchingMethod, thisType, name, bindingFlags, parameterTypes);
+        GetMethodExt(ref matchingMethod, thisType, name, bindingFlags, extraFilter, parameterTypes);
 
         // If we're searching an interface, we have to manually search base interfaces
         if (matchingMethod == null && thisType.IsInterface)
@@ -91,6 +94,7 @@ public static class TypeExtensions
                              interfaceType, 
                              name, 
                              bindingFlags, 
+                             extraFilter,
                              parameterTypes);
         }
 
@@ -101,12 +105,18 @@ public static class TypeExtensions
                                         Type type, 
                                         string name, 
                                         BindingFlags bindingFlags, 
+                                        Func<MethodInfo, bool>? extraFilter,
                                         params Type?[] parameterTypes)
     {
         // Check all methods with the specified name, including in base classes
         foreach (MethodInfo methodInfo in type.GetMethods(bindingFlags))
         {
             if (!methodInfo.Name.Equals(name))
+            {
+                continue;
+            }
+
+            if (extraFilter != null && !extraFilter(methodInfo))
             {
                 continue;
             }
