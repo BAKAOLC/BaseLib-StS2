@@ -153,11 +153,11 @@ public class BetaMainCompatibility
         {
             if (FromPowerDef.ParamCount == 1)
             {
-                return FromPowerDef.InvokeGeneric<IHoverTip, T>(null, [null]);
+                return FromPowerDef.InvokeGeneric<IHoverTip, T>(null, [null])!;
             }
             else
             {
-                return FromPowerDef.InvokeGeneric<IHoverTip, T>(null);
+                return FromPowerDef.InvokeGeneric<IHoverTip, T>(null)!;
             }
         }
     }
