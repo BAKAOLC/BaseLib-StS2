@@ -57,6 +57,10 @@ public abstract class CustomTemporaryPowerModelWrapper<TModel, TPower> : CustomT
                     return monsterModel.Title;
                 case ActModel actModel:
                     return actModel.Title;
+                case EnchantmentModel enchantmentModel:
+                    return enchantmentModel.Title;
+                case AfflictionModel afflictionModel:
+                    return afflictionModel.Title;
                 default:
                     BaseLibMain.Logger.Warn($"Getting the 'Title' for the base model type of '{OriginModel.GetType().Name}' has not been implemented yet. Using default title.");
                     return new LocString("powers",  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.title");
@@ -85,6 +89,20 @@ public abstract class CustomTemporaryPowerModelWrapper<TModel, TPower> : CustomT
                     break;
                 case ActModel:
                     items = [];
+                    break;
+                case EnchantmentModel:
+                    var enchantmentModel = (ModelDb.GetById<AbstractModel>(ModelDb.GetId<TModel>()) as EnchantmentModel)?.ToMutable();
+                    if (enchantmentModel is not null)
+                    {
+                        enchantmentModel.Amount = Amount;
+                        enchantmentModel.RecalculateValues();
+                    }
+                    items = enchantmentModel?.HoverTips.ToList() ?? [];
+                    break;
+                case AfflictionModel:
+                    var afflictionModel = (ModelDb.GetById<AbstractModel>(ModelDb.GetId<TModel>()) as AfflictionModel)?.ToMutable();
+                    afflictionModel?.Amount = Amount;
+                    items = afflictionModel?.HoverTips.ToList() ?? [];
                     break;
                 default:
                     BaseLibMain.Logger.Warn($"Getting the Hover Tips for the base model type of '{OriginModel.GetType().Name}' has not been implemented yet.");
