@@ -5,6 +5,7 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.MonsterMoves.Intents;
 using MegaCrit.Sts2.Core.MonsterMoves.MonsterMoveStateMachine;
+using MegaCrit.Sts2.Core.ValueProps;
 
 namespace BaseLib.Monsters;
 
@@ -14,12 +15,48 @@ namespace BaseLib.Monsters;
 /// </summary>
 public class MoveBuilder
 {
+    public enum PowerIntent
+    {
+        None,
+        Buff,
+        Debuff,
+        StrongDebuff
+    }
+    
     public readonly MonsterModel Monster;
     public readonly string Id;
 
     public readonly List<Func<IReadOnlyList<Creature>, Task>> Actions = [];
     public readonly List<AbstractIntent> Intents = [];
-    
+
+    public string? FollowUpStateId { get; set; } = null;
+
+
+
+    private void AddNewIntent<T>() where T : AbstractIntent, new()
+    {
+        if (Intents.Any(intent => intent is T))
+            return;
+        
+        Intents.Add(new T());
+    }
+    private void AddDebuffIntent(bool strong)
+    {
+        var debuffIndex = Intents.FindIndex(intent =>
+            intent.IntentType is IntentType.Debuff or IntentType.DebuffStrong);
+        if (debuffIndex >= 0)
+        {
+            if (Intents[debuffIndex].IntentType == IntentType.DebuffStrong || !strong)
+            {
+                return;
+            }
+
+            Intents[debuffIndex] = new DebuffIntent(strong);
+            return;
+        }
+        
+        Intents.Add(new DebuffIntent(strong));
+    }
     
     public MoveBuilder(MonsterModel monster, string id)
     {
@@ -28,7 +65,7 @@ public class MoveBuilder
     }
 
     /// <summary>
-    /// Adds an attack to the move.
+    /// Adds an attack and attack intent.
     /// </summary>
     /// <param name="damage">Base damage of the attack.</param>
     /// <param name="hitCount">Number of hits.</param>
@@ -70,6 +107,96 @@ public class MoveBuilder
         {
             Intents.Add(new SingleAttackIntent(damage));
         }
+        
+        return this;
+    }
+
+    /// <summary>
+    /// Gains Block and adds block intent.
+    /// </summary>
+    /// <returns></returns>
+    public MoveBuilder Block(int amount, ValueProp props = ValueProp.Move)
+    {
+        Actions.Add(async _ =>
+        {
+            await CreatureCmd.GainBlock(Monster.Creature, amount, props, null);
+        });
+        AddNewIntent<DefendIntent>();
+        return this;
+    }
+
+    /// <summary>
+    /// Applies specified power type to all players and adds a debuff intent.
+    /// </summary>
+    public MoveBuilder ApplyToPlayers<T>(int amount, bool isStrongDebuff, bool silent = false) where T : PowerModel
+    {
+        Actions.Add(async creatures =>
+        {
+            await MonsterActions.Apply<T>(Monster, amount, creatures, silent: silent);
+        });
+        AddDebuffIntent(isStrongDebuff);
+        
+        return this;
+    }
+
+    /// <summary>
+    /// Applies specified power type to self and adds a buff intent.
+    /// </summary>
+    public MoveBuilder ApplyToSelf<T>(int amount, bool silent = false) where T : PowerModel
+    {
+        Actions.Add(async _ =>
+        {
+            await MonsterActions.ApplySelf<T>(Monster, amount, silent: silent);
+        });
+        
+        AddNewIntent<BuffIntent>();
+        return this;
+    }
+    
+    /// <summary>
+    /// Applies specified power type to all creatures returned by targets function.
+    /// An intent to add can be specified.
+    /// </summary>
+    public MoveBuilder ApplyToSomeone<T>(int amount, Func<IEnumerable<Creature>> targets, PowerIntent intent = PowerIntent.None, bool silent = false) where T : PowerModel
+    {
+        Actions.Add(async _ =>
+        {
+            await MonsterActions.Apply<T>(Monster, amount, targets(), silent: silent);
+        });
+
+        switch (intent)
+        {
+            case PowerIntent.Buff:
+                AddNewIntent<BuffIntent>();
+                break;
+            case PowerIntent.Debuff:
+                AddDebuffIntent(false);
+                break;
+            case PowerIntent.StrongDebuff:
+                AddDebuffIntent(true);
+                break;
+        }
+        
+        return this;
+    }
+
+    /// <summary>
+    /// Heals the monster. If autoScaleWithPlayers is true, amount is multiplied by player count.
+    /// </summary>
+    public MoveBuilder HealSelf(int amount, bool autoScaleWithPlayers = true)
+    {
+        return HealSelf(() => amount * (autoScaleWithPlayers ? Monster.Creature.CombatState!.Players.Count : 1));
+    }
+    /// <summary>
+    /// Heals the monster.
+    /// </summary>
+    public MoveBuilder HealSelf(Func<int> amount)
+    {
+        Actions.Add(async _ =>
+        {
+            await CreatureCmd.Heal(Monster.Creature, amount());
+        });
+        AddNewIntent<HealIntent>();
         
         return this;
     }
@@ -131,13 +258,27 @@ public class MoveBuilder
     }
 
     /// <summary>
+    /// Sets the state ID that will be looked for as the following state.
+    /// </summary>
+    /// <param name="stateId"></param>
+    /// <returns></returns>
+    public MoveBuilder FollowingState(string stateId)
+    {
+        FollowUpStateId = stateId;
+        return this;
+    }
+
+    /// <summary>
     /// Constructs MoveState from options supplied to builder.
     /// </summary>
     public MoveState Build()
     {
-        return new MoveState(Id, new ActionExecutor(Actions), Intents.ToArray());
+        return new MoveState(Id, new ActionExecutor(Actions), Intents.ToArray())
+        {
+            FollowUpStateId = this.FollowUpStateId
+        };
     }
-    
+
     /// <summary>
     /// Implicit conversion to MoveState. Same result as calling <see cref="Build"/>.
     /// </summary>
