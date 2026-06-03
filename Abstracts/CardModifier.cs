@@ -19,10 +19,10 @@ namespace BaseLib.Abstracts;
 /// Receives all combat hooks, and is capable of modifying the card's description.
 /// More features to be added in the future.
 /// </summary>
-public abstract class CardModifier : AbstractModel
+public abstract class CardModifier : AbstractModel, IComparable<CardModifier>
 {
     /// <summary>
-    /// Obtains a new instance of a CardModifier from ModelDb using <see cref="ModelDbExtensions.CardModifier"/>
+    /// Obtains a new instance of a CardModifier from ModelDb using <see cref="ModelDbExtensions.CardModifier"/>.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
@@ -231,7 +231,7 @@ public abstract class CardModifier : AbstractModel
     
     private void ApplyInternal(CardModel card)
     {
-        DirectModifiers(card).Add(this);
+        DirectModifiers(card).InsertSorted(this);
         Owner = card;
         OnInitialApplication();
     }
@@ -242,6 +242,12 @@ public abstract class CardModifier : AbstractModel
             Owner = null;
         return DirectModifiers(card).Remove(this);
     }
+
+    /// <summary>
+    /// Affects the ordering of card modifiers when they are added to a card.
+    /// Lower priority means the card modifier will be inserted before card modifiers of higher priority.
+    /// </summary>
+    public int Priority { get; set; } = 0;
 
     /// <summary>
     /// Modifies a card's description before the game processes it.
@@ -285,6 +291,11 @@ public abstract class CardModifier : AbstractModel
     public virtual Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         return Task.CompletedTask;
+    }
+
+    int IComparable<CardModifier>.CompareTo(CardModifier? other)
+    {
+        return Priority.CompareTo(other?.Priority ?? 0);
     }
 }
 
