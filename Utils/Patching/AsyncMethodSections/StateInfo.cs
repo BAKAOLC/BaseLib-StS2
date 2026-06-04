@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using BaseLib.Extensions;
 using HarmonyLib;
 
 namespace BaseLib.Utils.Patching.AsyncMethodSections;
@@ -63,5 +64,13 @@ internal class StateInfo //, MethodBase stateMethod, int indexLoadIndex)
                 CodeInstruction.LoadLocal(stringDictLocal),
                 new CodeInstruction(OpCodes.Call, AsyncMethodCall.StoreDictionaryForStateMethod)
             ]);
+    }
+
+    public void AddResumeLog()
+    {
+        Code = new InstructionPatcher(Code)
+            .Match(new InstructionMatcher()
+                .initobj())
+            .Insert($"Resuming state {Index}".MakeWriteLog());
     }
 }

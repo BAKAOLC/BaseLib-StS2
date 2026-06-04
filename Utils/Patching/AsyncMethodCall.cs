@@ -54,8 +54,8 @@ public static class AsyncMethodCall
     private static readonly Dictionary<MethodBase, HashSet<string>> AddedNames = [];
 
     private static readonly ConcurrentDictionary<int, int> StateDictionary = [];
-    private const int MinKey = -357913941;
-    private const int MaxKey = -178956970;
+    private const int MinKey = int.MaxValue - (int.MaxValue / 4);
+    private const int MaxKey = int.MaxValue - (int.MaxValue / 16);
     private static int _fakeStateKey = MinKey;
 
     private static readonly Dictionary<string, object> AwaiterDictionary = [];
@@ -314,7 +314,7 @@ public static class AsyncMethodCall
         
         //Generate combined result
         var instructions = stateSections.Code;
-        //instructions.LogCode();
+        instructions.LogCode();
         //instructions.CheckCode();
         return instructions;
     }

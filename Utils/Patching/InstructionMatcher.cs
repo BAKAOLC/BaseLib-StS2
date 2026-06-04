@@ -685,9 +685,13 @@ Localloc = 0xfe0f,
 Endfilter = 0xfe11,
 Unaligned_ = 0xfe12,
 Volatile_ = 0xfe13,
-Tail_ = 0xfe14,
-Initobj = 0xfe15,
-Constrained_ = 0xfe16,
+Tail_ = 0xfe14,*/
+    public InstructionMatcher initobj(Type? t = null) //0xfe15
+    {
+        _target.Add(new(OpCodes.Initobj, t));
+        return this;
+    } 
+/*Constrained_ = 0xfe16,
 Cpblk = 0xfe17,
 Initblk = 0xfe18,
 Rethrow = 0xfe1a,
