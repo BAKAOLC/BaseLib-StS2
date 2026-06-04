@@ -240,7 +240,6 @@ internal static class CustomCharacterSortPatch
             }
         }
 
-
         CustomCharacterUtils.TypesToSort = null;
     }
 }
