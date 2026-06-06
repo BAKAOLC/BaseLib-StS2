@@ -1,6 +1,6 @@
 namespace BaseLib.Abstracts;
 
-public class ITrashHeapRelic
+public interface ITrashHeapRelic
 {
     
 }
