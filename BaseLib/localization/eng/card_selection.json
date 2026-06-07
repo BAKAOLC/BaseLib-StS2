@@ -1,0 +1,8 @@
+{
+  "BASELIB-CHOOSE_GENERIC": "Choose {Amount:plural:a card|[blue]{}[/blue] cards}.",
+  "BASELIB-DRAW_PILE": "Draw Pile",
+  "BASELIB-DISCARD_PILE": "Discard Pile",
+  "BASELIB-EXHAUST_PILE": "Exhaust Pile",
+  "BASELIB-HAND": "Hand",
+  "BASELIB-DECK": "Deck"
+}
