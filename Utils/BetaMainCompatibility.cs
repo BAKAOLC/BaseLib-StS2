@@ -415,7 +415,8 @@ public class CombatStateWrapper(object combatState)
     private static readonly VariableReference<CombatSide> CurrentSideRef;
     private static readonly VariableReference<List<Creature>> EscapedCreaturesRef;
     private static readonly VariableReference<IReadOnlyList<Creature>> HittableEnemiesRef;
-    
+
+    public object WrappedState => combatState;
     
     public IRunState RunState => RunStateRef.Get(combatState);
 
