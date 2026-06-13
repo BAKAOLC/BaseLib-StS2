@@ -231,6 +231,14 @@ public abstract class CardModifier : AbstractModel, IComparable<CardModifier>
     
     private void ApplyInternal(CardModel card)
     {
+        if (card.TryGetModifier(Id, out var modifier))
+        {
+            if (modifier.ApplyStacked(this))
+            {
+                return;
+            }
+        }
+        
         DirectModifiers(card).InsertSorted(this);
         Owner = card;
         OnInitialApplication();
@@ -241,6 +249,16 @@ public abstract class CardModifier : AbstractModel, IComparable<CardModifier>
         if (Owner == card)
             Owner = null;
         return DirectModifiers(card).Remove(this);
+    }
+
+    /// <summary>
+    /// This method is called when a modifier is applied to a card that already has the same modifier.
+    /// Return true to cancel the original application.
+    /// </summary>
+    /// <param name="newApplied">The modifier being applied.</param>
+    public virtual bool ApplyStacked(CardModifier newApplied)
+    {
+        return false;
     }
 
     /// <summary>
