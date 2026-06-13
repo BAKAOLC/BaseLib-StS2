@@ -21,9 +21,7 @@ namespace BaseLib.Common.Rewards;
 public sealed class CardUpgradeReward(Player player) : CustomReward(player)
 {
     private static string RewardIcon => ImageHelper.GetModImagePath("ui/reward_screen/reward_icon_card_upgrade.png");
-    /// <summary>
     /// <inheritdoc/>
-    /// </summary>
     protected override string IconPath => RewardIcon;
 
     // MAYBE: This isn't used atm in mods, but there's potential for hooking up a preload hook like
