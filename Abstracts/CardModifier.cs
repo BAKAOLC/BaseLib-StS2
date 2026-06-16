@@ -21,6 +21,7 @@ namespace BaseLib.Abstracts;
 /// A model that is attached to a card to modify its behavior.
 /// Receives all combat hooks, and is capable of modifying the card's description.
 /// More features to be added in the future.
+/// TODO - base value modification like enchants/afflictions
 /// </summary>
 public abstract class CardModifier : AbstractModel, IComparable<CardModifier>
 {
@@ -289,17 +290,19 @@ public abstract class CardModifier : AbstractModel, IComparable<CardModifier>
 
     /// <summary>
     /// Dynamic variables attached to each instance of the card modifier.
-    /// It's important to note that these will be added to the card's localization,
-    /// so avoid using default names for these.
+    /// Will automatically be attached to LocStrings retrieved using the <see cref="GetLoc"/> method.
     /// </summary>
     protected virtual IEnumerable<DynamicVar> CanonicalVars => [];
 
     /// <summary>
-    /// Can be overriden to add additional accessible values to the attached card's localization.
+    /// Retrieves a <see cref="LocString"/> from a card_modifiers.json table using this modifier's ID
+    /// and adds this modifier's dynamic variables to it.
     /// </summary>
-    public virtual void AddToDescription(LocString description)
+    public virtual LocString GetLoc(string subKey = "description")
     {
-        DynamicVars.AddTo(description);
+        var loc = new LocString("card_modifiers", $"{Id.Entry}.{subKey}");
+        DynamicVars.AddTo(loc);
+        return loc;
     }
 
     /// <summary>
