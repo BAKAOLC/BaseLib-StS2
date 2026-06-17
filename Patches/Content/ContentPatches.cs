@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using BaseLib.Abstracts;
 using BaseLib.Extensions;
+using BaseLib.Patches.UI;
 using BaseLib.Utils;
 using BaseLib.Utils.Patching;
 using HarmonyLib;
@@ -9,6 +10,7 @@ using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Acts;
+using MegaCrit.Sts2.Core.Models.Relics;
 using MegaCrit.Sts2.Core.Random;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
@@ -23,9 +25,11 @@ public static class CustomContentDictionary
 {
     public static readonly HashSet<Type> RegisteredTypes = [];
     private static readonly Dictionary<Type, Type> PoolTypes = [];
+    public static readonly List<CustomCharacterModel> CustomCharacters = [];
     public static readonly List<CustomEncounterModel> CustomEncounters = [];
     public static readonly List<CustomAncientModel> CustomAncients = [];
     public static readonly List<Type> CustomBadgeTypes = [];
+    
     /// <summary>
     /// Custom events tied to a specific act.
     /// </summary>
@@ -106,6 +110,18 @@ public static class CustomContentDictionary
         
         CustomActs.InsertSorted(actModel);
     }
+
+    public static void AddCharacter(CustomCharacterModel character)
+    {
+        if (!RegisterType(character.GetType())) return;
+        
+        CustomCharacters.InsertSorted(character);
+        var cookie = character.CustomYummyCookie;
+        if (cookie != null)
+        {
+            RelicImageOverridePatch.AddOverride<YummyCookie>(cookie, (relic) => relic.IsMutable && character.Id.Equals(relic.Owner?.Character.Id));
+        }
+    }
     
     private static bool IsValidPool(Type modelType, Type poolType)
     {
@@ -132,6 +148,15 @@ public static class CustomContentDictionary
     }
 }
 
+[HarmonyPatch(typeof(ModelDb), nameof(ModelDb.AllCharacters), MethodType.Getter)]
+class AddCustomCharacters
+{
+    [HarmonyPostfix]
+    static IEnumerable<CharacterModel> Patch(IEnumerable<CharacterModel> __result)
+    {
+        return [.. __result, ..CustomContentDictionary.CustomCharacters];
+    }
+}
 
 [HarmonyPatch(typeof(ModelDb), nameof(ModelDb.AllSharedAncients), MethodType.Getter)]
 class CustomAncientExistence
