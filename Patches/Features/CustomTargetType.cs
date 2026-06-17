@@ -449,18 +449,8 @@ internal class AllowedToTargetCreaturePatch
     {
         CustomTargetType.SingleTargeting.TryGetValue(__instance._validTargetsType, out var func);
         if (func == null) return true;
-        var players = RunManager.Instance.State?.Players;
-        Player? localPlayer = null;
-        if (players != null)
-        {
-            foreach (var player in players)
-            {
-                if (LocalContext.IsMe(player))
-                {
-                    localPlayer = player;
-                }
-            }
-        }
+        
+        var localPlayer = LocalContext.GetMe(RunManager.Instance.State);
         if (localPlayer == null)
         {
             return true;
