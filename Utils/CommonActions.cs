@@ -234,16 +234,11 @@ public static class CommonActions
     /// <summary>
     /// Gains Block based on the given DynamicVar (supports CalculatedBlockVar)
     /// </summary>
-    /// <param name="card"></param>
-    /// <param name="var"></param>
-    /// <param name="play"></param>
-    /// <param name="fast"></param>
-    /// <returns></returns>
     public static async Task<decimal> CardBlock(CardModel card, DynamicVar var, CardPlay? play, bool fast = false)
     {
         if (var is CalculatedBlockVar calculated)
         {
-            return await CreatureCmd.GainBlock(card.Owner.Creature, calculated.Calculate(play?.Target), calculated.Props, play, fast);
+            return await CreatureCmd.GainBlock(card.Owner.Creature, calculated.Calculate(card.Owner.Creature), calculated.Props, play, fast);
         }
         return await CreatureCmd.GainBlock(card.Owner.Creature, var.BaseValue, (var as BlockVar)?.Props ?? ValueProp.Move, play, fast);
     }
