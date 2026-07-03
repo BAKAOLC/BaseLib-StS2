@@ -26,7 +26,7 @@ internal class ModInterop
         //mod.assembly OR mod.assemblies
         _loadedIds = [];
         ModManager.GetLoadedMods()
-            .Where(mod => mod.manifest != null) 
+            .Where(mod => mod.manifest is not null) 
             .Do(CheckAssembly);
     }
 
