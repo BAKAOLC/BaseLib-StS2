@@ -101,8 +101,6 @@ class PostModInitPatch
         
         BaseLibMain.Logger.Info("Performing late post-mod init");
         
-        BaseLibMain.Logger.Debug(SavedPropertiesTypeCache._propertyNameToNetIdMap.Join(entry => $"[{entry.Key}, {entry.Value}]"));
-        
         foreach (var type in ReflectionHelper.ModTypes)
         {
             bool hasSavedProperty = false;
