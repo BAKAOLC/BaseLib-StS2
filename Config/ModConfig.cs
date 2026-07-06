@@ -57,7 +57,6 @@ public abstract partial class ModConfig
     [ConfigIgnore] public string? ModId { get; set; } // Injected by ModConfigRegistry
 
     private readonly string _modConfigName;
-    private bool _savingDisabled;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private CancellationTokenSource? _saveDebounceToken;
     private readonly SemaphoreSlim _configFileLock = new SemaphoreSlim(1, 1);
@@ -100,7 +99,6 @@ public abstract partial class ModConfig
     {
         ModPrefix = GetType().GetPrefix();
         ModId = null;
-        _modConfigName = GetType().FullName ?? "unknown";
         var rootNamespace = GetType().GetRootNamespace();
 
         if (string.IsNullOrEmpty(rootNamespace) && string.IsNullOrEmpty(filename))
@@ -114,6 +112,7 @@ public abstract partial class ModConfig
         }
 
         var defaultFilename = SpecialCharRegex().Replace(rootNamespace, "");
+        _modConfigName = defaultFilename;
 
         filename = filename == null ? defaultFilename : SpecialCharRegex().Replace(filename, "");
         if (!filename.Contains('.')) filename += ".cfg";
@@ -306,13 +305,6 @@ public abstract partial class ModConfig
 
     private void SaveInternal()
     {
-        if (_savingDisabled)
-        {
-            // No GUI error here, because that would've been shown already when _savingDisabled was set.
-            ModConfigLogger.Warn($"Skipping save for {_modConfigName} because the config file is currently in a corrupted, read-only state.");
-            return;
-        }
-
         Dictionary<string, string> values = [];
 
         // Convert all the values
@@ -396,11 +388,8 @@ public abstract partial class ModConfig
             return;
         }
 
-        // Missing fields or bad values (safe to overwrite the config if true)
+        // Missing fields or bad values (will overwrite the config if true)
         var hasSoftErrors = false;
-
-        // Hard errors disable saving (until the next successful load)
-        _savingDisabled = false;
 
         try
         {
@@ -434,18 +423,30 @@ public abstract partial class ModConfig
                     ModConfigLogger.Warn($"Loaded config {_modConfigName} with some missing or invalid fields.");
             }
         }
-        catch (JsonException jsonEx)
+        catch (JsonException)
         {
-            // Unlikely to happen except for people who have modified the file manually, so let's be verbose and show in GUI.
-            var locationText = jsonEx.LineNumber.HasValue
-                ? $"Line {jsonEx.LineNumber + 1}, position {jsonEx.BytePositionInLine + 1}"
-                : "unknown line";
-            ModConfigLogger.Error($"Failed to parse config file for {_modConfigName}. The JSON is likely invalid.\n" +
-                                  $"File path: {_path}\n" +
-                                  $"Error location: {locationText}");
-            ModConfigLogger.Warn("Config saving has been DISABLED for this mod to protect any manual edits.", true);
-            _savingDisabled = true;
-            return;
+            var fileInfo = new FileInfo(_path);
+
+            if (!fileInfo.Exists || fileInfo.Length == 0)
+            {
+                ModConfigLogger.Warn($"Config file {_modConfigName} was missing or empty, likely due to a previous crash. Restoring config to defaults.");
+            }
+            else
+            {
+                var brokenPath = _path + ".broken";
+                try
+                {
+                    File.Move(_path, brokenPath, overwrite: true);
+                }
+                catch { /* ignore */ }
+
+                ModConfigLogger.Error(
+                    $"Failed to parse mod configuration for {_modConfigName}; the file is corrupt.\n" +
+                    $"The broken file was backed up to: {brokenPath}\n" +
+                    $"The mod's configuration has been restored to default.");
+            }
+
+            hasSoftErrors = true;
         }
         catch (Exception e)
         {
