@@ -294,6 +294,7 @@ public abstract partial class ModConfig
 
         Dictionary<string, string> values = [];
 
+        // Convert all the values
         try
         {
             foreach (var property in ConfigProperties)
@@ -319,15 +320,32 @@ public abstract partial class ModConfig
             return;
         }
 
+        // Serialize to JSON and write to the config file
+        // To prevent corruption on write failures, we first write to a temporary file, and if successful,
+        // replace the config file with the temporary file.
+        var tempFile = _path + ".new";
         try
         {
             new FileInfo(_path).Directory?.Create();
-            using var fileStream = File.Create(_path);
-            JsonSerializer.Serialize(fileStream, values, JsonOptions);
+
+            using (var fileStream = File.Create(tempFile))
+            {
+                JsonSerializer.Serialize(fileStream, values, JsonOptions);
+            }
+
+            File.Move(tempFile, _path, overwrite: true);
         }
         catch (Exception e)
         {
             ModConfigLogger.Error($"Failed to save config {_modConfigName}: {e.Message}");
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(tempFile);
+            }
+            catch  { /* ignore */ }
         }
     }
 
