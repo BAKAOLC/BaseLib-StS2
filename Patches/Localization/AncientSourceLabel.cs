@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using BaseLib.Config;
 using BaseLib.Utils;
 using Godot;
@@ -41,7 +40,7 @@ public static class AncientSourceLabel
         var epithet = banner.GetNodeOrNull<MegaLabel>("%Epithet");
         if (epithet == null || epithet.GetNodeOrNull(LabelName) != null) return;
 
-        var title = new LocString("what_mod", "BASELIB-MOD_SOURCE.title").GetFormattedText();
+        var title = new LocString("gameplay_ui", "BASELIB-MOD_SOURCE.title").GetFormattedText();
 
         // Child of the now-settled epithet, so it follows its final position and 0.5 fade-in.
         var label = new MegaLabel

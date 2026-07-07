@@ -34,7 +34,7 @@ public static class EventSourceLabel
             return;
         }
 
-        var title = new LocString("what_mod", "BASELIB-MOD_SOURCE.title").GetFormattedText();
+        var title = new LocString("gameplay_ui", "BASELIB-MOD_SOURCE.title").GetFormattedText();
         var text = $"{title}: {name}";
 
         if (existing != null)

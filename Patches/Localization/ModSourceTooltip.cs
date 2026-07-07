@@ -21,7 +21,7 @@ public static class ModSourceTooltip
     private static readonly FieldInfo? DescriptionField =
         AccessTools.Field(typeof(HoverTip), "<Description>k__BackingField");
 
-    internal static LocString TitleLoc() => new("what_mod", "BASELIB-MOD_SOURCE.title");
+    internal static LocString TitleLoc() => new("gameplay_ui", "BASELIB-MOD_SOURCE.title");
 
     private static string? ModName(AbstractModel model) =>
         BaseLibConfig.ShowModSourceTooltip ? WhatMod.FindModName(model.GetType()) : null;
